@@ -1,0 +1,37 @@
+import { LeftSideBar } from "./side_bar.slint";
+import { Colors, Typography, Space } from "../tokens/theme.slint";
+
+export component SideBarPreview inherits Window {
+    title: "HyprAnki · Sidebar preview";
+    preferred-width: 760px;
+    preferred-height: 680px;
+    background: Colors.bg-content;
+    default-font-family: Typography.font-family;
+    default-font-size: Typography.body-size;
+    default-font-weight: Typography.body-weight;
+
+    HorizontalLayout {
+        spacing: 0px;
+        sidebar := LeftSideBar { }
+        Rectangle {
+            background: Colors.bg-content;
+            VerticalLayout {
+                padding: Space.xl;
+                spacing: Space.md;
+                alignment: start;
+                Text {
+                    text: sidebar.active-page == "home" ? "Home" : (sidebar.active-page == "stats" ? "Stats" : "Settings");
+                    color: Colors.text-primary;
+                    font-size: Typography.title-size;
+                    font-weight: Typography.title-weight;
+                }
+                Text {
+                    text: "Click a destination or use Tab + Enter.";
+                    color: Colors.text-secondary;
+                    wrap: word-wrap;
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+    }
+}

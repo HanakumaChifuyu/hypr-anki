@@ -1,0 +1,52 @@
+// 字号使用 Slint 逻辑像素，不按设计图的截图像素直接放大。
+export global Typography {
+    // 空字符串使用运行平台的默认字体和字体回退；不依赖手动安装 SF Pro。
+    // 可在应用入口覆盖为已安装或随应用打包的字体名称。
+    // Slint 将连字符与下划线视为等价，兼容现有 Typography.font_family。
+    in-out property <string> font-family: "";
+
+    // 基础字号。
+    in-out property <length> size-xs: 12px;
+    in-out property <length> size-sm: 13px;
+    in-out property <length> size-md: 14px;
+    in-out property <length> size-lg: 16px;
+    in-out property <length> size-xl: 20px;
+    in-out property <length> size-2xl: 24px;
+    in-out property <length> size-3xl: 28px;
+    in-out property <length> size-4xl: 32px;
+
+    in-out property <int> weight-regular: 400;
+    in-out property <int> weight-medium: 500;
+    in-out property <int> weight-semibold: 600;
+    in-out property <int> weight-bold: 700;
+
+    // 默认不扩张中英文间距；仅短英文分组标签使用宽字距。
+    in-out property <length> tracking-normal: 0px;
+    in-out property <length> tracking-wide: 1px;
+
+    // 语义字号 / 字重：组件优先使用这些 token。
+    in-out property <length> title-size: Typography.size-3xl;
+    in-out property <int> title-weight: Typography.weight-semibold;
+    in-out property <length> section-size: Typography.size-xl;
+    in-out property <int> section-weight: Typography.weight-semibold;
+    in-out property <length> brand-size: Typography.size-xl;
+    in-out property <int> brand-weight: Typography.weight-semibold;
+    in-out property <length> body-size: Typography.size-md;
+    in-out property <int> body-weight: Typography.weight-regular;
+    in-out property <length> body-large-size: Typography.size-lg;
+    in-out property <int> body-large-weight: Typography.weight-regular;
+    in-out property <length> nav-size: Typography.size-md;
+    in-out property <int> nav-weight: Typography.weight-medium;
+    in-out property <length> nav-tracking: Typography.tracking-normal;
+    in-out property <length> button-size: Typography.size-md;
+    in-out property <int> button-weight: Typography.weight-semibold;
+    in-out property <length> label-size: Typography.size-sm;
+    in-out property <int> label-weight: Typography.weight-medium;
+    in-out property <length> caption-size: Typography.size-xs;
+    in-out property <int> caption-weight: Typography.weight-regular;
+    in-out property <length> overline-size: Typography.size-xs;
+    in-out property <int> overline-weight: Typography.weight-medium;
+    in-out property <length> overline-tracking: Typography.tracking-wide;
+    in-out property <length> metric-size: Typography.size-4xl;
+    in-out property <int> metric-weight: Typography.weight-semibold;
+}

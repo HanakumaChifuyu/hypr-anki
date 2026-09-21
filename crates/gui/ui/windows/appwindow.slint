@@ -1,0 +1,26 @@
+import { Colors }from "../tokens/colors.slint";
+import { LeftSideBar } from "../component/side_bar.slint";
+import { Shape } from "../tokens/shape.slint";
+import { Typography } from "../tokens/typography.slint";
+
+export component AppWindow inherits Window {
+    in-out property <string> active-page <=> sidebar.active-page;
+    title: "HyprAnki";
+    icon: @image-url("../../asset/icon/hypranki-icon-v1.png");
+
+    background: Colors.bg-content;
+    default-font-family: Typography.font-family;
+    default-font-size: Typography.body-size;
+    default-font-weight: Typography.body-weight;
+    preferred-width: 1070px;
+    preferred-height: 720px;
+    HorizontalLayout {
+        spacing: 0px;
+        sidebar := LeftSideBar { }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            background: Colors.bg-content;
+        }
+    }
+}

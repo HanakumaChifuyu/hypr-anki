@@ -1,0 +1,213 @@
+import { Colors, Shape, Space, Typography } from "../tokens/theme.slint";
+import { SideBarCallback } from "../stroes/top_callback.slint";
+
+export component NavItem inherits Rectangle {
+    in property <image> icon;
+    in property <string> name;
+    in property <bool> selected: false;
+    in property <length> containerSize: Shape.left-side-bar-container-width;
+    in property <length> itemSize: Shape.left-side-bar-item-height;
+    callback clicked();
+
+    preferred-width: root.containerSize;
+    height: Shape.left-side-bar-item-container-height;
+    border-radius: Shape.radius-md;
+    border-width: 1px;
+    border-color: focus.has-focus ? Colors.focus-ring : transparent;
+    forward-focus: focus;
+    accessible-role: button;
+    accessible-label: root.name;
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    background: root.selected ? (touch.pressed ? Colors.bg-selected-pressed : (touch.has-hover ? Colors.bg-selected-hover : Colors.bg-selected)) : (touch.pressed ? Colors.bg-pressed : (touch.has-hover ? Colors.bg-hover : transparent));
+
+    HorizontalLayout {
+        padding-left: Space.md;
+        padding-right: Space.md;
+        spacing: Space.sm + Space.xs;
+        alignment: start;
+
+        Rectangle {
+            width: root.itemSize;
+            Image {
+                y: (parent.height - self.height) / 2;
+                width: root.itemSize;
+                height: root.itemSize;
+                image-fit: contain;
+                source: root.icon;
+                colorize: root.selected ? (touch.pressed ? Colors.icon-selected-pressed : (touch.has-hover ? Colors.icon-selected-hover : Colors.icon-selected)) : Colors.icon-primary;
+            }
+        }
+
+        Text {
+            text: root.name;
+            vertical-alignment: center;
+            font-size: Typography.nav-size;
+            font-family: Typography.font-family;
+            font-weight: Typography.nav-weight;
+            letter-spacing: Typography.nav-tracking;
+            color: root.selected ? (touch.pressed ? Colors.text-selected-pressed : (touch.has-hover ? Colors.text-selected-hover : Colors.text-selected)) : Colors.text-primary;
+        }
+    }
+
+    focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") {
+                if (!event.repeat) {
+                    root.clicked();
+                }
+                accept
+            } else {
+                reject
+            }
+        }
+        touch := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => {
+                focus.focus();
+                root.clicked();
+            }
+        }
+    }
+
+    animate background {
+        duration: 150ms;
+        easing: ease-out;
+    }
+}
+
+export component Title inherits Rectangle {
+    height: Shape.side-bar-brand-height;
+    HorizontalLayout {
+        padding-left: Space.md;
+        padding-right: Space.md;
+        spacing: Space.sm + Space.xs;
+        alignment: start;
+        Rectangle {
+            width: Shape.side-bar-brand-icon-size;
+            Image {
+                y: (parent.height - self.height) / 2;
+                width: Shape.side-bar-brand-icon-size;
+                height: Shape.side-bar-brand-icon-size;
+                source: @image-url("../../asset/icon/cards.svg");
+                image-fit: contain;
+                colorize: Colors.icon-primary;
+            }
+        }
+
+        Text {
+            text: "HyprAnki";
+            vertical-alignment: center;
+            font-family: Typography.font-family;
+            font-size: Typography.brand-size;
+            font-weight: Typography.brand-weight;
+            color: Colors.text-primary;
+        }
+    }
+}
+
+export component LeftSideBar inherits Rectangle {
+    // 使用稳定的页面标识，不让导航事件依赖显示文字。
+    in-out property <string> active-page: "home";
+    width: Shape.left-side-bar-container-width + Space.md * 2;
+    min-height: Shape.window-header-height + Shape.side-bar-brand-height + Shape.left-side-bar-item-container-height * 3 + 160px;
+    horizontal-stretch: 0;
+    background: Colors.bg-sidebar;
+
+    function navigate(page: string) {
+        root.active-page = page;
+        SideBarCallback.nav_item_click(page);
+    }
+
+    VerticalLayout {
+        padding-left: Space.md;
+        padding-right: Space.md;
+        padding-bottom: Space.lg;
+        spacing: 0px;
+
+        // 给原生红黄绿按钮留出空间，背景与侧边栏保持一致。
+        Rectangle {
+            height: Shape.window-header-height;
+        }
+
+        Title { }
+
+        Rectangle {
+            height: Space.xl;
+        }
+
+        Rectangle {
+            height: Space.lg;
+            Text {
+                x: Space.md;
+                width: parent.width - Space.md * 2;
+                text: "WORKSPACE";
+                vertical-alignment: center;
+                font-family: Typography.font-family;
+                font-size: Typography.overline-size;
+                font-weight: Typography.overline-weight;
+                letter-spacing: Typography.overline-tracking;
+                color: Colors.text-muted;
+            }
+        }
+
+        Rectangle {
+            height: Space.sm;
+        }
+
+        NavItem {
+            name: "Home";
+            icon: @image-url("../../asset/icon/home.svg");
+            selected: root.active-page == "home";
+            clicked => {
+                root.navigate("home");
+            }
+        }
+
+        Rectangle {
+            height: Space.xs;
+        }
+
+        NavItem {
+            name: "Stats";
+            icon: @image-url("../../asset/icon/statistics.svg");
+            selected: root.active-page == "stats";
+            clicked => {
+                root.navigate("stats");
+            }
+        }
+
+        // 弹性留白将设置固定到底部，随窗口高度变化。
+        Rectangle {
+            min-height: Space.lg;
+            vertical-stretch: 1;
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Colors.border-default;
+        }
+
+        Rectangle {
+            height: Space.md;
+        }
+
+        NavItem {
+            name: "Settings";
+            icon: @image-url("../../asset/icon/settings.svg");
+            selected: root.active-page == "settings";
+            clicked => {
+                root.navigate("settings");
+            }
+        }
+    }
+
+    Rectangle {
+        x: parent.width - 1px;
+        width: 1px;
+        height: parent.height;
+        background: Colors.border-default;
+    }
+}

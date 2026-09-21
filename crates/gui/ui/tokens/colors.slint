@@ -1,0 +1,224 @@
+// 配色分为基础色板 Palette 和语义颜色 Colors。
+// 50 → 950 由浅到深；组件优先使用 Colors，避免把具体色阶写进组件。
+// 当前为深色主题：深蓝背景 + 柔白文字 + 淡紫强调色。
+
+export global Palette {
+    in-out property <color> white: #ffffff;
+    in-out property <color> black: #000000;
+    in-out property <color> transparent: #00000000;
+
+    // 应用专用深蓝色阶：避免纯黑与过亮的灰色悬浮态。
+    in-out property <color> navy-950: #0c1220;
+    in-out property <color> navy-900: #101725;
+    in-out property <color> navy-850: #172131;
+    in-out property <color> navy-800: #1c2636;
+    in-out property <color> navy-750: #243044;
+    in-out property <color> navy-700: #2c394e;
+    in-out property <color> navy-600: #35445b;
+
+    // 淡紫品牌色：浅色用于主按钮和前景，深色用于选中区域。
+    in-out property <color> lavender-50: #f6f3ff;
+    in-out property <color> lavender-100: #ede7ff;
+    in-out property <color> lavender-200: #dfd2ff;
+    in-out property <color> lavender-300: #cbb5fa;
+    in-out property <color> lavender-400: #b89aef;
+    in-out property <color> lavender-500: #a17cde;
+    in-out property <color> lavender-600: #8560be;
+    in-out property <color> lavender-700: #694895;
+    in-out property <color> lavender-800: #403456;
+    in-out property <color> lavender-900: #332d48;
+    in-out property <color> lavender-950: #27253e;
+
+    // 中性色：文字和通用控件。
+    in-out property <color> slate-50: #f8fafc;
+    in-out property <color> slate-100: #f1f5f9;
+    in-out property <color> slate-200: #e2e8f0;
+    in-out property <color> slate-300: #cbd5e1;
+    in-out property <color> slate-400: #94a3b8;
+    in-out property <color> slate-500: #64748b;
+    in-out property <color> slate-600: #475569;
+    in-out property <color> slate-700: #334155;
+    in-out property <color> slate-800: #1e293b;
+    in-out property <color> slate-900: #0f172a;
+    in-out property <color> slate-950: #020617;
+
+    // 信息色（与淡紫品牌色区分）。
+    in-out property <color> blue-50: #eff6ff;
+    in-out property <color> blue-100: #dbeafe;
+    in-out property <color> blue-200: #bfdbfe;
+    in-out property <color> blue-300: #93c5fd;
+    in-out property <color> blue-400: #60a5fa;
+    in-out property <color> blue-500: #3b82f6;
+    in-out property <color> blue-600: #2563eb;
+    in-out property <color> blue-700: #1d4ed8;
+    in-out property <color> blue-800: #1e40af;
+    in-out property <color> blue-900: #1e3a8a;
+    in-out property <color> blue-950: #172554;
+
+    // 成功色。
+    in-out property <color> green-50: #f0fdf4;
+    in-out property <color> green-100: #dcfce7;
+    in-out property <color> green-200: #bbf7d0;
+    in-out property <color> green-300: #86efac;
+    in-out property <color> green-400: #4ade80;
+    in-out property <color> green-500: #22c55e;
+    in-out property <color> green-600: #16a34a;
+    in-out property <color> green-700: #15803d;
+    in-out property <color> green-800: #166534;
+    in-out property <color> green-900: #14532d;
+    in-out property <color> green-950: #052e16;
+
+    // 警告色。
+    in-out property <color> amber-50: #fffbeb;
+    in-out property <color> amber-100: #fef3c7;
+    in-out property <color> amber-200: #fde68a;
+    in-out property <color> amber-300: #fcd34d;
+    in-out property <color> amber-400: #fbbf24;
+    in-out property <color> amber-500: #f59e0b;
+    in-out property <color> amber-600: #d97706;
+    in-out property <color> amber-700: #b45309;
+    in-out property <color> amber-800: #92400e;
+    in-out property <color> amber-900: #78350f;
+    in-out property <color> amber-950: #451a03;
+
+    // 错误色 / 危险操作。
+    in-out property <color> red-50: #fef2f2;
+    in-out property <color> red-100: #fee2e2;
+    in-out property <color> red-200: #fecaca;
+    in-out property <color> red-300: #fca5a5;
+    in-out property <color> red-400: #f87171;
+    in-out property <color> red-500: #ef4444;
+    in-out property <color> red-600: #dc2626;
+    in-out property <color> red-700: #b91c1c;
+    in-out property <color> red-800: #991b1b;
+    in-out property <color> red-900: #7f1d1d;
+    in-out property <color> red-950: #450a0a;
+}
+
+export global Colors {
+    // 命名：用途前缀（bg / text / icon / border）+ 语义 + 交互状态。
+    // text-primary / icon-primary 表示内容层级；品牌实色背景上的前景使用 *-on-primary。
+
+    // 背景层级：窗口底色、容器和弱化区域；具体页面使用下方区域 token。
+    in-out property <color> bg-page: Palette.navy-950;
+    in-out property <color> bg-surface: Palette.navy-850;
+    in-out property <color> bg-subtle: Palette.navy-750;
+    in-out property <color> bg-inverse: Palette.slate-100;
+    in-out property <color> bg-overlay: #0c1220cc;
+
+    // 应用区域：侧边栏更深，内容页稍亮，分别支持独立调整。
+    in-out property <color> bg-sidebar: Palette.navy-900;
+    in-out property <color> bg-content: Palette.navy-800;
+
+    // 交互背景逐级提亮；选中态使用低强调紫底，搭配淡紫前景。
+    in-out property <color> bg-neutral: Palette.navy-750;
+    in-out property <color> bg-hover: Palette.navy-700;
+    in-out property <color> bg-pressed: Palette.navy-600;
+    in-out property <color> bg-disabled: Palette.navy-850;
+    in-out property <color> bg-selected: Palette.lavender-950;
+    in-out property <color> bg-selected-hover: Palette.lavender-900;
+    in-out property <color> bg-selected-pressed: Palette.lavender-800;
+
+    // 文字层级与交互状态；disabled 仅用于不可交互内容。
+    in-out property <color> text-primary: Palette.slate-50;
+    in-out property <color> text-secondary: Palette.slate-300;
+    in-out property <color> text-muted: Palette.slate-400;
+    in-out property <color> text-hover: Palette.white;
+    in-out property <color> text-pressed: Palette.white;
+    in-out property <color> text-disabled: Palette.slate-500;
+    in-out property <color> text-inverse: Palette.navy-900;
+    in-out property <color> text-on-neutral: Palette.slate-50;
+    in-out property <color> text-selected: Palette.lavender-300;
+    in-out property <color> text-selected-hover: Palette.lavender-200;
+    in-out property <color> text-selected-pressed: Palette.lavender-100;
+    in-out property <color> text-link: Palette.lavender-300;
+    in-out property <color> text-link-hover: Palette.lavender-200;
+    in-out property <color> text-link-pressed: Palette.lavender-100;
+
+    // 图标独立配置，应用于 Image.colorize；即使与文字同色也保留独立 token。
+    in-out property <color> icon-primary: Palette.slate-100;
+    in-out property <color> icon-secondary: Palette.slate-300;
+    in-out property <color> icon-muted: Palette.slate-400;
+    in-out property <color> icon-hover: Palette.white;
+    in-out property <color> icon-pressed: Palette.white;
+    in-out property <color> icon-disabled: Palette.slate-500;
+    in-out property <color> icon-inverse: Palette.navy-900;
+    in-out property <color> icon-on-neutral: Palette.slate-200;
+    in-out property <color> icon-selected: Palette.lavender-300;
+    in-out property <color> icon-selected-hover: Palette.lavender-200;
+    in-out property <color> icon-selected-pressed: Palette.lavender-100;
+
+    // 装饰性边框用 border-default；控件轮廓用 border-control。
+    in-out property <color> border-subtle: Palette.navy-750;
+    in-out property <color> border-default: Palette.navy-700;
+    in-out property <color> border-control: Palette.slate-400;
+    in-out property <color> border-hover: Palette.slate-300;
+    in-out property <color> border-pressed: Palette.slate-200;
+    in-out property <color> border-focus: Palette.lavender-300;
+    in-out property <color> border-error: Palette.red-400;
+    in-out property <color> border-disabled: Palette.navy-750;
+    in-out property <color> border-selected: Palette.lavender-300;
+    in-out property <color> border-selected-hover: Palette.lavender-200;
+    in-out property <color> border-selected-pressed: Palette.lavender-100;
+    in-out property <color> focus-ring: Palette.lavender-300;
+
+    // 主按钮：背景与其上的文字、图标分别配置。
+    in-out property <color> bg-primary: Palette.lavender-300;
+    in-out property <color> bg-primary-hover: Palette.lavender-200;
+    in-out property <color> bg-primary-pressed: Palette.lavender-400;
+    in-out property <color> text-on-primary: Palette.navy-900;
+    in-out property <color> icon-on-primary: Palette.navy-900;
+
+    // 低强调标签、复习进度与保存状态。
+    in-out property <color> bg-badge: Palette.lavender-900;
+    in-out property <color> text-badge: Palette.lavender-200;
+    in-out property <color> progress-track: Palette.navy-700;
+    in-out property <color> progress-fill: Palette.lavender-300;
+    in-out property <color> status-saved: Palette.green-400;
+
+    // 成功：实色背景搭配 *-on-*；低强调深色背景（*-subtle）搭配 text-* / icon-*。
+    in-out property <color> bg-success: Palette.green-400;
+    in-out property <color> bg-success-hover: Palette.green-300;
+    in-out property <color> bg-success-pressed: Palette.green-500;
+    in-out property <color> text-on-success: Palette.slate-950;
+    in-out property <color> icon-on-success: Palette.slate-950;
+    in-out property <color> bg-success-subtle: Palette.green-950;
+    in-out property <color> text-success: Palette.green-300;
+    in-out property <color> icon-success: Palette.green-300;
+    in-out property <color> border-success: Palette.green-600;
+
+    // 警告：实色背景搭配 *-on-*；低强调深色背景（*-subtle）搭配 text-* / icon-*。
+    in-out property <color> bg-warning: Palette.amber-400;
+    in-out property <color> bg-warning-hover: Palette.amber-300;
+    in-out property <color> bg-warning-pressed: Palette.amber-500;
+    in-out property <color> text-on-warning: Palette.slate-950;
+    in-out property <color> icon-on-warning: Palette.slate-950;
+    in-out property <color> bg-warning-subtle: Palette.amber-950;
+    in-out property <color> text-warning: Palette.amber-300;
+    in-out property <color> icon-warning: Palette.amber-300;
+    in-out property <color> border-warning: Palette.amber-600;
+
+    // 错误 / 危险操作：实色背景搭配 *-on-*；低强调深色背景（*-subtle）搭配 text-* / icon-*。
+    in-out property <color> bg-danger: Palette.red-400;
+    in-out property <color> bg-danger-hover: Palette.red-300;
+    in-out property <color> bg-danger-pressed: Palette.red-500;
+    in-out property <color> text-on-danger: Palette.slate-950;
+    in-out property <color> icon-on-danger: Palette.slate-950;
+    in-out property <color> bg-danger-subtle: Palette.red-950;
+    in-out property <color> text-danger: Palette.red-300;
+    in-out property <color> icon-danger: Palette.red-300;
+    in-out property <color> border-danger: Palette.red-600;
+
+    // 信息：实色背景搭配 *-on-*；低强调深色背景（*-subtle）搭配 text-* / icon-*。
+    in-out property <color> bg-info: Palette.blue-400;
+    in-out property <color> bg-info-hover: Palette.blue-300;
+    in-out property <color> bg-info-pressed: Palette.blue-500;
+    in-out property <color> text-on-info: Palette.slate-950;
+    in-out property <color> icon-on-info: Palette.slate-950;
+    in-out property <color> bg-info-subtle: Palette.blue-950;
+    in-out property <color> text-info: Palette.blue-300;
+    in-out property <color> icon-info: Palette.blue-300;
+    in-out property <color> border-info: Palette.blue-600;
+
+    // 状态边框仅作辅助，应同时提供文字或图标表达状态。
+}

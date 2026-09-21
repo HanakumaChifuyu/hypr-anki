@@ -1,0 +1,144 @@
+import { Colors, Typography, Space, Shape } from "theme.slint";
+
+component TypeSample inherits VerticalLayout {
+    in property <string> label;
+    in property <string> sample;
+    in property <length> size;
+    in property <int> weight;
+    spacing: Space.xs;
+    Text {
+        text: root.label;
+        color: Colors.text-muted;
+        font-size: Typography.caption-size;
+    }
+    Text {
+        text: root.sample;
+        color: Colors.text-primary;
+        font-size: root.size;
+        font-weight: root.weight;
+    }
+}
+
+component ColorSample inherits Rectangle {
+    in property <string> label;
+    in property <color> fill;
+    in property <color> foreground: Colors.text-primary;
+    background: root.fill;
+    border-radius: Shape.radius-md;
+    border-width: 1px;
+    border-color: Colors.border-default;
+    min-height: 48px;
+    Text {
+        x: Space.md;
+        width: parent.width - Space.md * 2;
+        text: root.label;
+        color: root.foreground;
+        vertical-alignment: center;
+        font-size: Typography.label-size;
+        font-weight: Typography.label-weight;
+    }
+}
+
+export component TokensPreview inherits Window {
+    title: "HyprAnki · Design tokens";
+    preferred-width: 980px;
+    preferred-height: 760px;
+    background: Colors.bg-content;
+    default-font-family: Typography.font-family;
+    default-font-size: Typography.body-size;
+    default-font-weight: Typography.body-weight;
+
+    VerticalLayout {
+        padding: Space.xl;
+        spacing: Space.lg;
+        Text {
+            text: "HyprAnki / 字体与配色";
+            font-size: Typography.title-size;
+            font-weight: Typography.title-weight;
+            color: Colors.text-primary;
+        }
+        Text {
+            text: "Deep navy · Soft lavender · System typography";
+            font-size: Typography.body-large-size;
+            color: Colors.text-secondary;
+        }
+        HorizontalLayout {
+            spacing: Space.xl;
+            VerticalLayout {
+                spacing: Space.md;
+                TypeSample { label: "Title · 28 / 600"; sample: "每天一点，记得更牢"; size: Typography.title-size; weight: Typography.title-weight; }
+                TypeSample { label: "Section / Brand · 20 / 600"; sample: "Your decks · 我的牌组"; size: Typography.section-size; weight: Typography.section-weight; }
+                TypeSample { label: "Body large · 16 / 400"; sample: "A little progress, every day."; size: Typography.body-large-size; weight: Typography.body-large-weight; }
+                TypeSample { label: "Body · 14 / 400"; sample: "今天还有 24 张卡片等待复习。"; size: Typography.body-size; weight: Typography.body-weight; }
+                TypeSample { label: "Navigation · 14 / 500"; sample: "Home / Stats / Settings"; size: Typography.nav-size; weight: Typography.nav-weight; }
+                TypeSample { label: "Label · 13 / 500"; sample: "Daily goal · 每日目标"; size: Typography.label-size; weight: Typography.label-weight; }
+                TypeSample { label: "Caption · 12 / 400"; sample: "All changes saved · 已保存"; size: Typography.caption-size; weight: Typography.caption-weight; }
+                TypeSample { label: "Metric · 32 / 600"; sample: "24 / 7 days"; size: Typography.metric-size; weight: Typography.metric-weight; }
+                Rectangle { vertical-stretch: 1; }
+            }
+            VerticalLayout {
+                spacing: Space.sm;
+                Text {
+                    text: "SURFACES & STATES";
+                    font-size: Typography.overline-size;
+                    font-weight: Typography.overline-weight;
+                    letter-spacing: Typography.overline-tracking;
+                    color: Colors.text-muted;
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Sidebar"; fill: Colors.bg-sidebar; }
+                    ColorSample { label: "Content"; fill: Colors.bg-content; }
+                    ColorSample { label: "Surface"; fill: Colors.bg-surface; }
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Primary"; fill: Colors.bg-content; foreground: Colors.text-primary; }
+                    ColorSample { label: "Secondary"; fill: Colors.bg-content; foreground: Colors.text-secondary; }
+                    ColorSample { label: "Muted"; fill: Colors.bg-content; foreground: Colors.text-muted; }
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Selected"; fill: Colors.bg-selected; foreground: Colors.text-selected; }
+                    ColorSample { label: "Hover"; fill: Colors.bg-selected-hover; foreground: Colors.text-selected-hover; }
+                    ColorSample { label: "Pressed"; fill: Colors.bg-selected-pressed; foreground: Colors.text-selected-pressed; }
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Action"; fill: Colors.bg-primary; foreground: Colors.text-on-primary; }
+                    ColorSample { label: "Hover"; fill: Colors.bg-primary-hover; foreground: Colors.text-on-primary; }
+                    ColorSample { label: "Pressed"; fill: Colors.bg-primary-pressed; foreground: Colors.text-on-primary; }
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Neutral"; fill: Colors.bg-neutral; }
+                    ColorSample { label: "Hover"; fill: Colors.bg-hover; }
+                    ColorSample { label: "Pressed"; fill: Colors.bg-pressed; }
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Success"; fill: Colors.bg-success-subtle; foreground: Colors.text-success; }
+                    ColorSample { label: "Warning"; fill: Colors.bg-warning-subtle; foreground: Colors.text-warning; }
+                }
+                HorizontalLayout {
+                    spacing: Space.sm;
+                    ColorSample { label: "Danger"; fill: Colors.bg-danger-subtle; foreground: Colors.text-danger; }
+                    ColorSample { label: "Info"; fill: Colors.bg-info-subtle; foreground: Colors.text-info; }
+                }
+                ColorSample { label: "18 due · Badge"; fill: Colors.bg-badge; foreground: Colors.text-badge; }
+                Rectangle {
+                    height: 6px;
+                    border-radius: Shape.radius-full;
+                    background: Colors.progress-track;
+                    Rectangle {
+                        width: parent.width * 0.6;
+                        height: parent.height;
+                        border-radius: Shape.radius-full;
+                        background: Colors.progress-fill;
+                    }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+    }
+}
