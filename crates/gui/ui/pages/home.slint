@@ -1,0 +1,43 @@
+import { StudySummary } from "../component/study_summary.slint";
+import { DeckToolbar } from "../component/deck_toolbar.slint";
+import { Colors, Shape, Space } from "../tokens/theme.slint";
+
+export component Home inherits Rectangle {
+    in-out property <string> search-query <=> toolbar.search-query;
+    // 一次性聚焦请求，避免窗口引用条件创建的页面实例。
+    in-out property <bool> request-search-focus: false;
+    changed request-search-focus => {
+        if (root.request-search-focus) {
+            toolbar.focus-search();
+            root.request-search-focus = false;
+        }
+    }
+    in property <int> due-today: 0;
+    in property <int> learning: 0;
+    in property <int> new-cards: 0;
+    in property <int> reviewed-today: 0;
+    in property <int> daily-goal: 0;
+    in property <int> streak-days: 0;
+    background: Colors.bg-content;
+
+    VerticalLayout {
+        padding-top: Shape.window-header-height;
+        padding-left: Space.xl;
+        padding-right: Space.xl;
+        padding-bottom: Space.xl;
+        alignment: start;
+        toolbar := DeckToolbar { }
+        Rectangle { height: Space.md; }
+        Rectangle { height: 1px; background: Colors.border-default; }
+        Rectangle { height: Space.sm; }
+        StudySummary {
+            due-today: root.due-today;
+            learning: root.learning;
+            new-cards: root.new-cards;
+            reviewed-today: root.reviewed-today;
+            daily-goal: root.daily-goal;
+            streak-days: root.streak-days;
+        }
+        Rectangle { vertical-stretch: 1; }
+    }
+}

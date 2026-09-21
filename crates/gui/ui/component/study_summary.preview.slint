@@ -1,0 +1,25 @@
+import { StudySummary } from "./study_summary.slint";
+import { Colors, Space, Typography } from "../tokens/theme.slint";
+
+export component StudySummaryPreview inherits Window {
+    in-out property <int> reviewed-today: 12;
+    in-out property <int> daily-goal: 20;
+    in-out property <int> streak-days: 7;
+    title: "HyprAnki · Study summary";
+    preferred-width: 848px;
+    preferred-height: 112px;
+    background: Colors.bg-content;
+    default-font-family: Typography.font-family;
+
+    VerticalLayout {
+        padding: Space.lg;
+        StudySummary {
+            due-today: 54;
+            learning: 6;
+            new-cards: 17;
+            reviewed-today: root.reviewed-today;
+            daily-goal: root.daily-goal;
+            streak-days: root.streak-days;
+        }
+    }
+}

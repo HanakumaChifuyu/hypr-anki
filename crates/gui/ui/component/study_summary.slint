@@ -1,0 +1,174 @@
+import { Colors, Shape, Space, Typography } from "../tokens/theme.slint";
+
+component GoalRing inherits Rectangle {
+    in property <float> progress;
+    width: Shape.study-goal-ring-size;
+    height: Shape.study-goal-ring-size;
+
+    // 固定 viewbox，避免短圆弧被自动拉伸到整个控件大小。
+    Path {
+        viewbox-width: 40;
+        viewbox-height: 40;
+        stroke: root.progress >= 1 ? Colors.progress-fill : Colors.progress-track;
+        stroke-width: 3px;
+        commands: "M 20 1.5 A 18.5 18.5 0 1 1 20 38.5 A 18.5 18.5 0 1 1 20 1.5";
+    }
+    // 0% 不画前景；100% 使用上面的完整圆，避免同起终点的弧退化。
+    if root.progress > 0 && root.progress < 1: Path {
+        viewbox-width: 40;
+        viewbox-height: 40;
+        stroke: Colors.progress-fill;
+        stroke-width: 3px;
+        stroke-line-cap: round;
+        MoveTo { x: 20; y: 1.5; }
+        ArcTo {
+            radius-x: 18.5;
+            radius-y: 18.5;
+            x: 20 + 18.5 * sin(root.progress * 360deg);
+            y: 20 - 18.5 * cos(root.progress * 360deg);
+            large-arc: root.progress > 0.5;
+            sweep: true;
+        }
+    }
+}
+
+component StudyMetric inherits Rectangle {
+    in property <int> count;
+    in property <string> label;
+    in property <color> accent;
+    min-width: 72px;
+    horizontal-stretch: 1;
+
+    VerticalLayout {
+        y: (parent.height - self.height) / 2;
+        height: Shape.study-goal-ring-size;
+        spacing: 0px;
+        Text {
+            text: "\{max(0, root.count)}";
+            color: root.accent;
+            font-family: Typography.font-family;
+            font-size: Typography.compact-metric-size;
+            font-weight: Typography.metric-weight;
+            min-width: 0px;
+            overflow: elide;
+        }
+        Text {
+            text: root.label;
+            color: Colors.text-muted;
+            font-family: Typography.font-family;
+            font-size: Typography.caption-size;
+            font-weight: Typography.caption-weight;
+        }
+    }
+}
+
+component MetricDivider inherits Rectangle {
+    width: 1px;
+    Rectangle {
+        height: Shape.study-summary-divider-height;
+        background: Colors.border-default;
+    }
+}
+
+// 紧凑的单行概览；示例数据只存在于 preview 中。
+export component StudySummary inherits Rectangle {
+    in property <int> due-today: 0;
+    in property <int> learning: 0;
+    in property <int> new-cards: 0;
+    // 今日已完成量，独立于待复习 / 学习中 / 新卡数量。
+    in property <int> reviewed-today: 0;
+    // 0 表示尚未设置每日目标，此时显示空环和破折号。
+    in property <int> daily-goal: 0;
+    in property <int> streak-days: 0;
+
+    private property <float> goal-progress: root.daily-goal > 0
+        ? min(1, max(0, root.reviewed-today) / max(1, root.daily-goal)) : 0;
+
+    preferred-width: 800px;
+    min-width: 640px;
+    height: Shape.study-summary-height;
+    vertical-stretch: 0;
+
+    HorizontalLayout {
+        spacing: Space.md;
+        Rectangle {
+            min-width: 144px;
+            horizontal-stretch: 1;
+            HorizontalLayout {
+                spacing: Space.sm + Space.xs;
+                Rectangle {
+                    width: Shape.study-goal-ring-size;
+                    GoalRing { progress: root.goal-progress; }
+                }
+                VerticalLayout {
+                    y: (parent.height - self.height) / 2;
+                    height: Shape.study-goal-ring-size;
+                    spacing: Space.xs;
+                    Text {
+                        text: root.daily-goal > 0
+                            ? "\{max(0, root.reviewed-today)} / \{root.daily-goal}"
+                            : "\{max(0, root.reviewed-today)} / —";
+                        color: Colors.text-primary;
+                        font-family: Typography.font-family;
+                        font-size: Typography.body-size;
+                        font-weight: Typography.weight-semibold;
+                        min-width: 0px;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: "Daily goal";
+                        color: Colors.text-muted;
+                        font-family: Typography.font-family;
+                        font-size: Typography.caption-size;
+                        font-weight: Typography.caption-weight;
+                    }
+                }
+            }
+        }
+        MetricDivider { }
+        StudyMetric {
+            count: root.due-today;
+            label: "Due today";
+            accent: Colors.study-due;
+        }
+        MetricDivider { }
+        StudyMetric {
+            count: root.learning;
+            label: "Learning";
+            accent: Colors.study-learning;
+        }
+        MetricDivider { }
+        StudyMetric {
+            count: root.new-cards;
+            label: "New cards";
+            accent: Colors.study-new;
+        }
+        MetricDivider { }
+        Rectangle {
+            min-width: 120px;
+            horizontal-stretch: 0;
+            HorizontalLayout {
+                spacing: Space.sm;
+                Rectangle {
+                    width: 24px;
+                    Image {
+                        width: 24px;
+                        height: 24px;
+                        source: @image-url("../../asset/icon/flame.svg");
+                        image-fit: contain;
+                        colorize: Colors.icon-muted;
+                    }
+                }
+                Text {
+                    text: root.streak-days > 0
+                        ? "\{root.streak-days} day streak" : "No streak yet";
+                    vertical-alignment: center;
+                    color: Colors.text-muted;
+                    font-family: Typography.font-family;
+                    font-size: Typography.caption-size;
+                    font-weight: Typography.caption-weight;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,205 @@
+import { Colors, Shape, Space, Typography } from "../tokens/theme.slint";
+import { DeckToolbarCallback } from "../stroes/deck_toolbar_callback.slint";
+
+component ToolbarButton inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> accent: false;
+    callback clicked();
+    height: Shape.deck-toolbar-height;
+    horizontal-stretch: 0;
+    border-radius: Shape.radius-md;
+    border-width: 1px;
+    border-color: focus.has-focus ? Colors.focus-ring
+        : (root.accent ? Colors.border-selected
+        : (touch.has-hover ? Colors.border-hover : Colors.border-control));
+    background: touch.pressed ? Colors.bg-pressed
+        : (touch.has-hover ? Colors.bg-hover : transparent);
+    forward-focus: focus;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => { root.clicked(); }
+
+    HorizontalLayout {
+        padding-left: Space.md;
+        padding-right: Space.md;
+        spacing: Space.sm;
+        Rectangle {
+            width: 20px;
+            Image {
+                width: 20px;
+                height: 20px;
+                source: root.icon;
+                image-fit: contain;
+                colorize: root.accent ? Colors.icon-selected : Colors.icon-primary;
+            }
+        }
+        Text {
+            text: root.text;
+            vertical-alignment: center;
+            color: root.accent ? Colors.text-selected : Colors.text-primary;
+            font-family: Typography.font-family;
+            font-size: Typography.button-size;
+            font-weight: Typography.button-weight;
+        }
+    }
+    focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") {
+                if (!event.repeat) { root.clicked(); }
+                accept
+            } else { reject }
+        }
+        touch := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => {
+                focus.focus();
+                root.clicked();
+            }
+        }
+    }
+    animate background { duration: 120ms; }
+}
+
+component DeckSearch inherits Rectangle {
+    in-out property <string> query;
+    public function focus-search() {
+        editor.focus();
+        editor.select-all();
+    }
+
+    min-width: 220px;
+    horizontal-stretch: 1;
+    height: Shape.deck-toolbar-height;
+    border-radius: Shape.radius-md;
+    border-width: 1px;
+    border-color: editor.has-focus ? Colors.focus-ring
+        : (touch.has-hover ? Colors.border-control : Colors.border-default);
+    forward-focus: editor;
+
+    // 位于输入控件下层，让图标与边距也能聚焦，输入区保留原生选取行为。
+    touch := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { editor.focus(); }
+    }
+    HorizontalLayout {
+        padding-left: Space.md;
+        padding-right: Space.sm;
+        spacing: Space.sm;
+        Rectangle {
+            width: 20px;
+            Image {
+                width: 20px;
+                height: 20px;
+                source: @image-url("../../asset/icon/search.svg");
+                image-fit: contain;
+                colorize: Colors.icon-muted;
+            }
+        }
+        Rectangle {
+            min-width: 100px;
+            horizontal-stretch: 1;
+            if root.query == "": Text {
+                x: 0px;
+                width: parent.width;
+                text: "Find a deck...";
+                vertical-alignment: center;
+                color: Colors.text-muted;
+                font-family: Typography.font-family;
+                font-size: Typography.body-size;
+            }
+            // 单行输入只需裁切和跟随光标滚动，同时兼容项目的预览器。
+            scroll := Rectangle {
+                clip: true;
+                property <length> scroll-offset: 0px;
+                property <length> text-width: max(self.width, editor.preferred-width + 4px);
+                editor := TextInput {
+                    text <=> root.query;
+                    single-line: true;
+                    x: -scroll.scroll-offset;
+                    width: scroll.text-width;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    font-family: Typography.font-family;
+                    font-size: Typography.body-size;
+                    color: Colors.text-primary;
+                    selection-background-color: Colors.bg-selected;
+                    selection-foreground-color: Colors.text-selected;
+                    accessible-label: "Find a deck";
+                    edited => { DeckToolbarCallback.search-changed(self.text); }
+                    accepted => { DeckToolbarCallback.search-submitted(self.text); }
+                    cursor-position-changed(position) => {
+                        if (position.x - scroll.scroll-offset > scroll.width - 4px) {
+                            scroll.scroll-offset = position.x - scroll.width + 4px;
+                        }
+                        if (position.x < scroll.scroll-offset) {
+                            scroll.scroll-offset = position.x;
+                        }
+                        scroll.scroll-offset = min(scroll.text-width - scroll.width,
+                            max(0px, scroll.scroll-offset));
+                    }
+                    key-pressed(event) => {
+                        if (event.text == Key.Escape) {
+                            if (root.query != "") {
+                                root.query = "";
+                                DeckToolbarCallback.search-changed("");
+                            } else { editor.clear-focus(); }
+                            accept
+                        } else { reject }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            width: Platform.os == OperatingSystemType.macos ? 36px : 52px;
+            Rectangle {
+                height: 24px;
+                border-radius: Shape.radius-sm;
+                border-width: 1px;
+                border-color: Colors.border-default;
+                Text {
+                    text: Platform.os == OperatingSystemType.macos ? "⌘ K" : "Ctrl K";
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    color: Colors.text-secondary;
+                    font-family: Typography.font-family;
+                    font-size: Typography.caption-size;
+                }
+            }
+        }
+    }
+}
+
+export component DeckToolbar inherits FocusScope {
+    in-out property <string> search-query;
+    public function focus-search() { search.focus-search(); }
+
+    height: Shape.deck-toolbar-height;
+    preferred-width: 800px;
+    vertical-stretch: 0;
+    focus-on-tab-navigation: false;
+    capture-key-pressed(event) => {
+        if (event.modifiers.control && (event.text == "k" || event.text == "K")) {
+            root.focus-search();
+            accept
+        } else { reject }
+    }
+    HorizontalLayout {
+        spacing: Space.sm + Space.xs;
+        search := DeckSearch {
+            query <=> root.search-query;
+        }
+        Rectangle { width: Space.xs; }
+        ToolbarButton {
+            text: "Import";
+            icon: @image-url("../../asset/icon/import.svg");
+            clicked => { DeckToolbarCallback.import-requested(); }
+        }
+        ToolbarButton {
+            text: "New deck";
+            icon: @image-url("../../asset/icon/plus.svg");
+            accent: true;
+            clicked => { DeckToolbarCallback.new-deck-requested(); }
+        }
+    }
+}

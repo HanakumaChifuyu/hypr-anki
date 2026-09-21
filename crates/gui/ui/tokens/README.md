@@ -46,6 +46,7 @@
 | 辅助说明 | `caption-size` | 12px | `caption-weight` | 400 |
 | 分组标签 | `overline-size` | 12px | `overline-weight` | 500 |
 | 统计数字 | `metric-size` | 32px | `metric-weight` | 600 |
+| 紧凑看板数字 | `compact-metric-size` | 22px | `metric-weight` | 600 |
 
 字体属性以 [Slint 字体说明](https://docs.slint.dev/latest/docs/slint/guide/development/fonts/) 和 [Window 默认字体属性](https://docs.slint.dev/latest/docs/slint/reference/window/window/) 为准。系统缺少中文字库时仍需安装相应字体；这里不打包字体文件。
 

@@ -1,0 +1,16 @@
+import { DeckToolbar } from "./deck_toolbar.slint";
+import { Colors, Space } from "../tokens/theme.slint";
+export { DeckToolbarCallback } from "../stroes/deck_toolbar_callback.slint";
+
+export component DeckToolbarPreview inherits Window {
+    in-out property <string> search-query <=> toolbar.search-query;
+    title: "HyprAnki · Deck toolbar";
+    preferred-width: 848px;
+    preferred-height: 92px;
+    background: Colors.bg-content;
+    forward-focus: toolbar;
+    VerticalLayout {
+        padding: Space.lg;
+        toolbar := DeckToolbar { }
+    }
+}

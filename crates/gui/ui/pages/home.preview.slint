@@ -1,0 +1,15 @@
+import { Home } from "./home.slint";
+
+export component HomePreview inherits Window {
+    title: "HyprAnki · Home preview";
+    preferred-width: 760px;
+    preferred-height: 480px;
+    Home {
+        due-today: 54;
+        learning: 6;
+        new-cards: 17;
+        reviewed-today: 12;
+        daily-goal: 20;
+        streak-days: 7;
+    }
+}

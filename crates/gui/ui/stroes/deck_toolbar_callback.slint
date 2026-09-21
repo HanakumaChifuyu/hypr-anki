@@ -1,0 +1,9 @@
+// 工具栏直接发送业务事件，页面和窗口无需逐层转发。
+// 从 ui/appwindow.slint 导出后，Rust 可通过
+// app.global::<DeckToolbarCallback>().on_import_requested(...) 等方法监听。
+export global DeckToolbarCallback {
+    callback search-changed(query: string);
+    callback search-submitted(query: string);
+    callback import-requested();
+    callback new-deck-requested();
+}

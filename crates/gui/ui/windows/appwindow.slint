@@ -1,10 +1,24 @@
-import { Colors }from "../tokens/colors.slint";
+import { Colors } from "../tokens/colors.slint";
 import { LeftSideBar } from "../component/side_bar.slint";
-import { Shape } from "../tokens/shape.slint";
 import { Typography } from "../tokens/typography.slint";
+import { Home } from "../pages/home.slint";
 
 export component AppWindow inherits Window {
     in-out property <string> active-page <=> sidebar.active-page;
+    // 搜索状态由窗口持有，Home 销毁后仍保留。
+    in-out property <string> search-query;
+    private property <bool> request-search-focus: false;
+    changed active-page => {
+        root.request-search-focus = false;
+        // 页面销毁时，先将键盘焦点移交给持续存在的快捷键作用域。
+        shortcuts.focus();
+    }
+    in property <int> due-today: 0;
+    in property <int> learning: 0;
+    in property <int> new-cards: 0;
+    in property <int> reviewed-today: 0;
+    in property <int> daily-goal: 0;
+    in property <int> streak-days: 0;
     title: "HyprAnki";
     icon: @image-url("../../asset/icon/hypranki-icon-v1.png");
 
@@ -14,13 +28,35 @@ export component AppWindow inherits Window {
     default-font-weight: Typography.body-weight;
     preferred-width: 1070px;
     preferred-height: 720px;
-    HorizontalLayout {
-        spacing: 0px;
-        sidebar := LeftSideBar { }
+    forward-focus: shortcuts;
 
-        Rectangle {
-            horizontal-stretch: 1;
-            background: Colors.bg-content;
+    // 快捷键覆盖侧边栏与内容区，搜索框未聚焦时也可使用。
+    shortcuts := FocusScope {
+        focus-on-tab-navigation: false;
+        capture-key-pressed(event) => {
+            if (root.active-page == "home" && event.modifiers.control
+                && (event.text == "k" || event.text == "K")) {
+                root.request-search-focus = true;
+                accept
+            } else { reject }
+        }
+        HorizontalLayout {
+            spacing: 0px;
+            sidebar := LeftSideBar { }
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Colors.bg-content;
+                if root.active-page == "home": Home {
+                    search-query <=> root.search-query;
+                    request-search-focus <=> root.request-search-focus;
+                    due-today: root.due-today;
+                    learning: root.learning;
+                    new-cards: root.new-cards;
+                    reviewed-today: root.reviewed-today;
+                    daily-goal: root.daily-goal;
+                    streak-days: root.streak-days;
+                }
+            }
         }
     }
 }
