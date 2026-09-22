@@ -1,8 +1,10 @@
 import { StudySummary } from "../component/study_summary.slint";
 import { DeckToolbar } from "../component/deck_toolbar.slint";
+import { DeckTree, FlatNode } from "../component/deck_tree.slint";
 import { Colors, Shape, Space } from "../tokens/theme.slint";
 
 export component Home inherits Rectangle {
+    in property <[FlatNode]> decks;
     in-out property <string> search-query <=> toolbar.search-query;
     // 一次性聚焦请求，避免窗口引用条件创建的页面实例。
     in-out property <bool> request-search-focus: false;
@@ -25,7 +27,6 @@ export component Home inherits Rectangle {
         padding-left: Space.xl;
         padding-right: Space.xl;
         padding-bottom: Space.xl;
-        alignment: start;
         toolbar := DeckToolbar { }
         Rectangle { height: Space.md; }
         Rectangle { height: 1px; background: Colors.border-default; }
@@ -38,6 +39,11 @@ export component Home inherits Rectangle {
             daily-goal: root.daily-goal;
             streak-days: root.streak-days;
         }
-        Rectangle { vertical-stretch: 1; }
+        Rectangle { height: Space.lg; }
+        DeckTree {
+            vertical-stretch: 1;
+            nodes: root.decks;
+            empty-text: root.search-query == "" ? "No decks yet" : "No matching decks";
+        }
     }
 }

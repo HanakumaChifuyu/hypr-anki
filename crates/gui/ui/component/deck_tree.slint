@@ -1,0 +1,232 @@
+import { ScrollView } from "std-widgets.slint";
+import { Colors, Typography, Shape, Space } from "../tokens/theme.slint";
+import { DeckTreeCallback, DeckDropPosition } from "../stroes/deck_tree_callback.slint";
+
+// 后端提供可见节点的先序遍历，level 从 0 开始，id 稳定且唯一。
+// 折叠的后代不在列表中；前端不重排、不筛选，也不修改 is_expanded。
+export struct FlatNode { id: int, name: string, level: int, is_expanded: bool }
+
+component DeckRow inherits Rectangle {
+    in property <FlatNode> node;
+    private property <DeckDropPosition> drop-position: DeckDropPosition.inside;
+    pure function position-at(y: length) -> DeckDropPosition {
+        return y < 10px ? DeckDropPosition.before
+            : y > root.height - 10px ? DeckDropPosition.after : DeckDropPosition.inside;
+    }
+    height: Shape.deck-tree-row-height;
+    min-width: 0px;
+    background: drop.has-drag && root.drop-position == DeckDropPosition.inside
+        ? Colors.bg-selected : study.has-hover ? Colors.bg-hover : transparent;
+    opacity: drag.dragging ? 0.5 : 1;
+
+    drop := DropArea {
+        can-drop(event) => {
+            root.drop-position = root.position-at(event.position.y);
+            return DeckTreeCallback.can-drop(event.data, root.node.id, root.drop-position)
+                ? DragAction.move : DragAction.none;
+        }
+        dropped(event) => {
+            root.drop-position = root.position-at(event.position.y);
+            if (DeckTreeCallback.can-drop(event.data, root.node.id, root.drop-position)) {
+                DeckTreeCallback.drop-requested(event.data, root.node.id, root.drop-position);
+                return DragAction.move;
+            }
+            return DragAction.none;
+        }
+        // 菜单在 DragArea 内部，确保右键先由菜单处理。
+        drag := DragArea {
+            allow-move: true;
+            data: DeckTreeCallback.drag-data(root.node.id);
+            drag-image: @image-url("../../asset/icon/cards.svg");
+            row-menu := ContextMenuArea {
+                Menu {
+                    MenuItem { title: "New subdeck"; activated => { DeckTreeCallback.new-child-requested(root.node.id); } }
+                    MenuItem { title: "New sibling deck"; activated => { DeckTreeCallback.new-sibling-requested(root.node.id); } }
+                    MenuItem { title: "Import into deck…"; activated => { DeckTreeCallback.import-requested(root.node.id); } }
+                    MenuSeparator { }
+                    MenuItem { title: "Rename…"; activated => { DeckTreeCallback.rename-requested(root.node.id); } }
+                    MenuItem { title: "Delete…"; activated => { DeckTreeCallback.delete-requested(root.node.id); } }
+                }
+                HorizontalLayout {
+                    padding-left: Space.sm + max(root.node.level, 0) * Shape.deck-tree-indent;
+                    padding-right: Space.md;
+                    spacing: Space.sm;
+                    Rectangle {
+                        width: 28px;
+                        // 当前结构没有 has-children，所有节点保留展开入口，由后端决定结果。
+                        background: expand.has-hover ? Colors.bg-hover : transparent;
+                        border-radius: Shape.radius-sm;
+                        Image {
+                            width: 16px; height: 16px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            source: root.node.is-expanded ? @image-url("../../asset/icon/chevron-down.svg")
+                                : @image-url("../../asset/icon/chevron-right.svg");
+                            colorize: Colors.icon-secondary;
+                        }
+                        expand := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { DeckTreeCallback.expansion-requested(root.node.id, !root.node.is-expanded); }
+                            pointer-event(event) => {
+                                if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
+                                    row-menu.show({ x: parent.x + self.mouse-x, y: self.mouse-y });
+                                }
+                            }
+                        }
+                    }
+                    focus := FocusScope {
+                        horizontal-stretch: 1;
+                        key-pressed(event) => {
+                            if (event.text == Key.Return || event.text == " ") {
+                                DeckTreeCallback.study-requested(root.node.id);
+                                return accept;
+                            }
+                            if (event.text == Key.RightArrow || event.text == Key.LeftArrow) {
+                                DeckTreeCallback.expansion-requested(root.node.id, event.text == Key.RightArrow);
+                                return accept;
+                            }
+                            return reject;
+                        }
+                        Rectangle {
+                            border-radius: Shape.radius-sm;
+                            border-width: focus.has-focus ? 1px : 0px;
+                            border-color: Colors.border-focus;
+                            HorizontalLayout {
+                                spacing: Space.sm;
+                                Rectangle {
+                                    width: 20px;
+                                    Image {
+                                        width: 20px; height: 20px;
+                                        y: (parent.height - self.height) / 2;
+                                        source: @image-url("../../asset/icon/cards.svg");
+                                        colorize: Colors.icon-secondary;
+                                    }
+                                }
+                                Text {
+                                    text: root.node.name;
+                                    color: Colors.text-primary;
+                                    font-size: Typography.body-size;
+                                    font-weight: Typography.weight-medium;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                    horizontal-stretch: 1;
+                                    min-width: 0px;
+                                }
+                                Rectangle {
+                                    width: 16px;
+                                    Image {
+                                        width: 16px; height: 16px;
+                                        y: (parent.height - self.height) / 2;
+                                        source: @image-url("../../asset/icon/play.svg");
+                                        colorize: Colors.icon-selected;
+                                        opacity: study.has-hover || focus.has-focus ? 1 : 0;
+                                    }
+                                }
+                            }
+                        }
+                        study := TouchArea {
+                            mouse-cursor: pointer;
+                            pointer-event(event) => {
+                                if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
+                                    row-menu.show({ x: focus.x + self.mouse-x, y: self.mouse-y });
+                                }
+                            }
+                            clicked => {
+                                DeckTreeCallback.study-requested(root.node.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Colors.border-subtle;
+    }
+    if drop.has-drag: Rectangle {
+        y: root.drop-position == DeckDropPosition.after ? parent.height - 2px : 0px;
+        height: root.drop-position == DeckDropPosition.inside ? parent.height : 2px;
+        background: root.drop-position == DeckDropPosition.inside ? transparent : Colors.border-selected;
+        border-width: root.drop-position == DeckDropPosition.inside ? 1px : 0px;
+        border-color: Colors.border-selected;
+    }
+}
+
+export component DeckTree inherits Rectangle {
+    in property <[FlatNode]> nodes;
+    // 搜索为空和没有任何卡组可由页面分别提供说明。
+    in property <string> empty-text: "No decks yet";
+    min-height: 180px;
+    VerticalLayout {
+        spacing: Space.md;
+        HorizontalLayout {
+            height: 28px;
+            Text {
+                text: "Your decks";
+                color: Colors.text-primary;
+                font-size: Typography.section-size;
+                font-weight: Typography.section-weight;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Rectangle {
+                width: 104px;
+                border-radius: Shape.radius-sm;
+                background: collapse.has-hover ? Colors.bg-hover : transparent;
+                Text {
+                    text: "Collapse all";
+                    color: root.nodes.length > 0 ? Colors.text-secondary : Colors.text-disabled;
+                    font-size: Typography.caption-size;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                collapse := TouchArea {
+                    enabled: root.nodes.length > 0;
+                    mouse-cursor: pointer;
+                    clicked => { DeckTreeCallback.collapse-all-requested(); }
+                }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: Shape.radius-md;
+            background: Colors.bg-surface;
+            border-width: 1px;
+            border-color: Colors.border-default;
+            clip: true;
+            ContextMenuArea {
+                x: 1px; y: 1px;
+                width: parent.width - 2px;
+                height: parent.height - 2px;
+                Menu {
+                    MenuItem { title: "New deck"; activated => { DeckTreeCallback.new-root-requested(); } }
+                    MenuItem { title: "Import decks…"; activated => { DeckTreeCallback.import-root-requested(); } }
+                }
+                ScrollView {
+                    content-width: self.visible-width;
+                    VerticalLayout {
+                        spacing: 0px;
+                        alignment: start;
+                        // 不根据 is_expanded 再过滤；后端列表即最终可见列表。
+                        for node in root.nodes: DeckRow { node: node; }
+                        Rectangle { min-height: 64px; vertical-stretch: 1; }
+                    }
+                }
+                if root.nodes.length == 0: Text {
+                    text: root.empty-text + "\nRight-click here to create or import a deck";
+                    color: Colors.text-muted;
+                    font-size: Typography.body-size;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+        Text {
+            text: "Click to study · Right-click to manage · Drag to move";
+            color: Colors.text-muted;
+            font-size: Typography.caption-size;
+        }
+    }
+}

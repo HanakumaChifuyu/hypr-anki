@@ -1,66 +1,6 @@
 import { Colors, Shape, Space, Typography } from "../tokens/theme.slint";
 import { DeckToolbarCallback } from "../stroes/deck_toolbar_callback.slint";
 
-component ToolbarButton inherits Rectangle {
-    in property <string> text;
-    in property <image> icon;
-    in property <bool> accent: false;
-    callback clicked();
-    height: Shape.deck-toolbar-height;
-    horizontal-stretch: 0;
-    border-radius: Shape.radius-md;
-    border-width: 1px;
-    border-color: focus.has-focus ? Colors.focus-ring
-        : (root.accent ? Colors.border-selected
-        : (touch.has-hover ? Colors.border-hover : Colors.border-control));
-    background: touch.pressed ? Colors.bg-pressed
-        : (touch.has-hover ? Colors.bg-hover : transparent);
-    forward-focus: focus;
-    accessible-role: button;
-    accessible-label: root.text;
-    accessible-action-default => { root.clicked(); }
-
-    HorizontalLayout {
-        padding-left: Space.md;
-        padding-right: Space.md;
-        spacing: Space.sm;
-        Rectangle {
-            width: 20px;
-            Image {
-                width: 20px;
-                height: 20px;
-                source: root.icon;
-                image-fit: contain;
-                colorize: root.accent ? Colors.icon-selected : Colors.icon-primary;
-            }
-        }
-        Text {
-            text: root.text;
-            vertical-alignment: center;
-            color: root.accent ? Colors.text-selected : Colors.text-primary;
-            font-family: Typography.font-family;
-            font-size: Typography.button-size;
-            font-weight: Typography.button-weight;
-        }
-    }
-    focus := FocusScope {
-        key-pressed(event) => {
-            if (event.text == Key.Return || event.text == " ") {
-                if (!event.repeat) { root.clicked(); }
-                accept
-            } else { reject }
-        }
-        touch := TouchArea {
-            mouse-cursor: MouseCursor.pointer;
-            clicked => {
-                focus.focus();
-                root.clicked();
-            }
-        }
-    }
-    animate background { duration: 120ms; }
-}
-
 component DeckSearch inherits Rectangle {
     in-out property <string> query;
     public function focus-search() {
@@ -185,21 +125,8 @@ export component DeckToolbar inherits FocusScope {
         } else { reject }
     }
     HorizontalLayout {
-        spacing: Space.sm + Space.xs;
         search := DeckSearch {
             query <=> root.search-query;
-        }
-        Rectangle { width: Space.xs; }
-        ToolbarButton {
-            text: "Import";
-            icon: @image-url("../../asset/icon/import.svg");
-            clicked => { DeckToolbarCallback.import-requested(); }
-        }
-        ToolbarButton {
-            text: "New deck";
-            icon: @image-url("../../asset/icon/plus.svg");
-            accent: true;
-            clicked => { DeckToolbarCallback.new-deck-requested(); }
         }
     }
 }

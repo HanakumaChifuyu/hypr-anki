@@ -1,9 +1,12 @@
 import { Colors } from "../tokens/colors.slint";
 import { LeftSideBar } from "../component/side_bar.slint";
 import { Typography } from "../tokens/typography.slint";
+import { Shape } from "../tokens/shape.slint";
 import { Home } from "../pages/home.slint";
+import { FlatNode } from "../component/deck_tree.slint";
 
 export component AppWindow inherits Window {
+    in property <[FlatNode]> decks;
     in-out property <string> active-page <=> sidebar.active-page;
     // 搜索状态由窗口持有，Home 销毁后仍保留。
     in-out property <string> search-query;
@@ -28,6 +31,8 @@ export component AppWindow inherits Window {
     default-font-weight: Typography.body-weight;
     preferred-width: 1070px;
     preferred-height: 720px;
+    min-width: Shape.app-window-min-width;
+    min-height: Shape.app-window-min-height;
     forward-focus: shortcuts;
 
     // 快捷键覆盖侧边栏与内容区，搜索框未聚焦时也可使用。
@@ -47,6 +52,7 @@ export component AppWindow inherits Window {
                 horizontal-stretch: 1;
                 background: Colors.bg-content;
                 if root.active-page == "home": Home {
+                    decks: root.decks;
                     search-query <=> root.search-query;
                     request-search-focus <=> root.request-search-focus;
                     due-today: root.due-today;

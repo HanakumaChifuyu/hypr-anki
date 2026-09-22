@@ -14,16 +14,18 @@ fn window_init() -> Result<()> {
                 .with_fullsize_content_view(true)
                 .with_titlebar_transparent(true)
                 .with_title_hidden(true)
-                .with_movable_by_window_background(true)
         }));
     }
     slint::platform::set_platform(Box::new(backend))?;
     Ok(())
 }
 
-pub fn entry_point() -> Result<()> {
-    window_init();
+pub fn entry_point(init: impl FnOnce(&AppWindow)) -> Result<()> {
+    window_init()?;
     let app = AppWindow::new()?;
-    app.run();
+    super::deck_tree::bind(&app);
+    // 在事件循环启动前，由入口按构建配置注入初始数据。
+    init(&app);
+    app.run()?;
     Ok(())
 }

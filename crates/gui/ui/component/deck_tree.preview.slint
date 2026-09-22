@@ -1,0 +1,25 @@
+import { DeckTree, FlatNode } from "./deck_tree.slint";
+import { Colors, Typography, Space } from "../tokens/theme.slint";
+export { FlatNode }
+export { DeckTreeCallback, DeckDropPosition } from "../stroes/deck_tree_callback.slint";
+
+export component DeckTreePreview inherits Window {
+    in-out property <[FlatNode]> nodes: [
+        { id: 1, name: "Languages", level: 0, is_expanded: true },
+        { id: 2, name: "Japanese", level: 1, is_expanded: true },
+        { id: 3, name: "Vocabulary", level: 2, is_expanded: false },
+        { id: 4, name: "Grammar", level: 2, is_expanded: false },
+        { id: 5, name: "English", level: 1, is_expanded: false },
+        { id: 6, name: "Computer science", level: 0, is_expanded: false },
+        { id: 7, name: "Reading", level: 0, is_expanded: false },
+    ];
+    title: "HyprAnki · Deck tree";
+    preferred-width: 760px;
+    preferred-height: 520px;
+    background: Colors.bg-content;
+    default-font-family: Typography.font-family;
+    VerticalLayout {
+        padding: Space.lg;
+        DeckTree { nodes: root.nodes; }
+    }
+}
