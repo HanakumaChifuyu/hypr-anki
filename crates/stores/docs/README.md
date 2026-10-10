@@ -21,7 +21,7 @@
 每次新增或修改数据库实体时，请严格遵守以下 4 步标准化流程：
 
 ```
-[1. 设计结构体 Model] ──► [2. 追加建表 DDL] ──► [3. 实现仓储 CRUD] ──► [4. 补全表结构文档]
+[1. 设计结构体 Model] ──► [2. 追加建表 DDL] ──► [3. 实现仓储 CRUD & 单元测试] ──► [4. 补全表结构文档]
 ```
 
 ### 1. 先设计结构体 (Models & DTOs)
@@ -38,12 +38,12 @@
   * 主键统一使用 `id INTEGER PRIMARY KEY AUTOINCREMENT`。
   * 必须显式为高频查询的外键字段追加索引（如 `CREATE INDEX IF NOT EXISTS idx_...`）。
 
-### 3. 写好基本的增删改查方法 (Repository & Integration Tests)
+### 3. 写好基本的增删改查方法 (Repository & Unit Tests)
 * **位置**：`crates/stores/src/repository/<entity>.rs`
 * **规范**：
   * 构造标准结构体 `<Entity>Repository`，持有包装层 `SqlitePool`。
   * 实现核心 CRUD：创建 (`create`, `create_simple`)、查询 (`find_by_id`, `find_all`, 按特定条件查询)、更新 (`update`, `update_partial`, 精准字段更新)、删除 (`delete_by_id`, `delete_by_ids`)。
-  * **编写集成测试**：在 `crates/stores/tests/` 下编写针对该实体的测试用例，**统一使用 `sqlx::migrate!`** 执行数据库迁移进行初始化。
+  * **编写单元测试**：Repository 层的测试直接在**同文件末尾的 `#[cfg(test)] mod tests`** 中作为单元测试编写，**统一使用 `sqlx::migrate!`** 执行数据库初始化，无需放入外部 `tests/` 集成测试目录。
 
 ### 4. 补全文档内容 (Documentation)
 * **位置**：`crates/stores/docs/tables/<table_name>.md`
@@ -66,8 +66,9 @@
 * `SqlitePool` 暴露 `inner(&self) -> &Pool<Sqlite>` 方法。
 * Repository/Service 统一提供 `pub fn pool(&self) -> &Pool<Sqlite> { self.pool.inner() }`，并在内部统一通过 `self.pool()` 调用，避免裸露的解引用和底层持有细节。
 
-### 3. 集成测试建表规范
-* 集成测试**必须统一使用 `sqlx::migrate!("../../migrations")`** 进行数据库初始化。
+### 3. Repository 单元测试规范
+* Repository 测试作为**单元测试**维护在当前文件的 `#[cfg(test)] mod tests` 中，与实现代码共存，提高内聚性。
+* 测试中**必须统一使用 `sqlx::migrate!("../../migrations")`** 进行数据库初始化。
 * **严禁在测试文件中硬编码建表 DDL**，以确保测试环境与生产迁移 100% 同步，杜绝 Schema Drift。
 
 ### 4. 动态 SQL 安全

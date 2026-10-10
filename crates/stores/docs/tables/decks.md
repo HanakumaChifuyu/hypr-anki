@@ -45,16 +45,3 @@ CREATE INDEX IF NOT EXISTS idx_decks_config_id ON DECKS (config_id);
 | `updated_at` | `INTEGER` | `i64` | 否 | Unix 秒级时间戳 | 牌组元数据（名称、层级、配置等）的最后修改时间 |
 
 ---
-
-## 4. 关键设计考量与决策
-
-### 4.1 局部名称（Leaf Name）设计
-* **区别于官方 Anki 纯字符串 `::` 方案**：官方 Anki 传统上将名称直接存为 `"Languages::Japanese::Vocab"`。
-* **HyprAnki 的关系型树设计**：本项目通过 `parent_id` 显式维护树状父子层级，因此 `name` 仅保存当前节点本身的名称（如 `"Vocab"`）。
-* **优势**：
-  1. 重命名父牌组或拖拽迁移牌组位置时，无需通过复杂的字符串前缀匹配递归修改成百上千个后代节点的名称；
-  2. 移动牌组只需单行更新：`UPDATE DECKS SET parent_id = ? WHERE id = ?`。
-
-### 4.2 卡片学习状态统计字段不入库
-* 今日待复习数（`review_count`）、待学新卡数（`new_count`）是随系统日期动态演变的运行时指标。
-* 这些计数值通过 SQL 查询卡片表（`CARDS`）动态聚合获取，不在 `DECKS` 表中存储，避免缓存失效或并发脏读。
