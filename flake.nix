@@ -41,7 +41,7 @@
           formatter = pkgs.nixfmt;
 
           devShells.default = pkgs.mkShell {
-            name = "hypranki-rust-slint";
+            name = "hypranki";
 
             packages = with pkgs; [
               fish
@@ -51,6 +51,7 @@
               rustfmt
               rust-analyzer
               cargo-generate
+              sqlx-cli
               slint-lsp
               pkg-config
               cmake
