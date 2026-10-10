@@ -1947,7 +1947,9 @@ dependencies = [
  "directories",
  "serde",
  "serde_json",
+ "stores",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

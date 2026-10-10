@@ -1,23 +1,34 @@
-use crate::deck::DeckView;
-use crate::path::AppPath;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use std::{fs, io};
+use std::path::PathBuf;
 
-use anyhow::{Ok, Result};
+use anyhow::Result;
+
+use crate::infra::InfraState;
+use crate::repo::RepoState;
 
 pub trait FromRef<T> {
     fn from_ref(input: &T) -> Self;
 }
 
-#[derive(Debug, Clone)]
-pub struct AppState {
-    pub app_path: Arc<AppPath>,
-    pub deck_view: Arc<DeckView>,
+impl<T: Clone> FromRef<T> for T {
+    fn from_ref(input: &T) -> Self {
+        input.clone()
+    }
 }
 
-impl AppState {}
+#[derive(Debug)]
+pub struct AppState {
+    infra_state: InfraState,
+    repo_state: RepoState,
+}
 
-#[cfg(test)]
-mod test {}
+impl AppState {
+    pub async fn new(custom_project: Option<PathBuf>) -> Result<Self> {
+        let infra_state = InfraState::new(custom_project).await?;
+        let repo_state = RepoState::new(&infra_state);
+
+        Ok(Self {
+            infra_state,
+            repo_state,
+        })
+    }
+}
