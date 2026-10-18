@@ -23,8 +23,6 @@ fn window_init() -> Result<()> {
 pub fn entry_point(init: impl FnOnce(&AppWindow)) -> Result<()> {
     window_init()?;
     let app = AppWindow::new()?;
-    super::deck_tree::bind(&app);
-    // 在事件循环启动前，由入口按构建配置注入初始数据。
     init(&app);
     app.run()?;
     Ok(())

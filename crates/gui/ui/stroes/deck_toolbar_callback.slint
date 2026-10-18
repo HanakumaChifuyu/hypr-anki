@@ -1,7 +1,0 @@
-// 搜索栏直接发送搜索事件，页面和窗口无需逐层转发。
-// 从 ui/appwindow.slint 导出后，Rust 可通过
-// app.global::<DeckToolbarCallback>().on_search_changed(...) 等方法监听。
-export global DeckToolbarCallback {
-    callback search-changed(query: string);
-    callback search-submitted(query: string);
-}
