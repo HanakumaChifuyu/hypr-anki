@@ -1,0 +1,34 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "HyprAnki",
+  "version": "0.1.0",
+  "identifier": "com.hypranki.app",
+  "build": {
+    "beforeDevCommand": "if [ -f gui/ui/package.json ]; then npm --prefix gui/ui run dev; elif [ -f ui/package.json ]; then npm --prefix ui run dev; else npm run dev; fi",
+    "beforeBuildCommand": "if [ -f gui/ui/package.json ]; then npm --prefix gui/ui run build; elif [ -f ui/package.json ]; then npm --prefix ui run build; else npm run build; fi",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "ui/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "HyprAnki",
+        "width": 1100,
+        "height": 760,
+        "minWidth": 640,
+        "minHeight": 480
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-src 'none'",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-src 'none'"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "asset/icon/hypranki-icon-v1.png"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
-use anyhow::Result;
-pub mod windows;
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-fn main() -> Result<()> {
-    windows::main_app_window::entry_point(|_app| {})
+fn main() {
+    tauri::Builder::default()
+        .run(tauri::generate_context!())
+        .expect("failed to run HyprAnki");
 }

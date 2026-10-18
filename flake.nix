@@ -1,5 +1,5 @@
 {
-  description = "Rust + Slint development environment for hypranki";
+  description = "Rust + Tauri + React development environment for hypranki";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -19,10 +19,17 @@
         { pkgs, ... }:
         let
           inherit (pkgs) lib;
-          # Winit loads some windowing and graphics libraries at runtime.
+          # Tauri uses WebKitGTK and GTK on Linux.
           linuxLibraries = lib.optionals pkgs.stdenv.hostPlatform.isLinux (
             with pkgs;
             [
+              gtk3
+              webkitgtk_4_1
+              libsoup_3
+              glib
+              librsvg
+              openssl
+              libayatana-appindicator
               fontconfig
               freetype
               libGL
@@ -52,10 +59,10 @@
               rust-analyzer
               cargo-generate
               sqlx-cli
-              slint-lsp
+              nodejs_24
+              cargo-tauri
               pkg-config
               cmake
-              slint-viewer
             ];
 
             buildInputs = linuxLibraries;

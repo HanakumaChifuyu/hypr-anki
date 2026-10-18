@@ -1,2 +1,5 @@
 target/
 output/
+node_modules/
+crates/gui/ui/dist/
+/crates/gui/gen/

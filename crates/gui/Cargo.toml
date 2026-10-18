@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.104"
-slint = "1.18.0"
-i-slint-backend-winit = "1.18.0"
+tauri = { version = "2", features = [] }
 
 [build-dependencies]
-slint-build = "1.18.0"
+tauri-build = { version = "2", features = [] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
