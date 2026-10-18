@@ -57,7 +57,7 @@ npm --prefix crates/gui/ui run build
 - `ui/vite.config.ts`：固定开发端口 1420，端口占用时报错。
 - `asset/`：应用图标等资源。
 
-当前保留简单启动页，不引入路由、状态库和 UI 组件库。`@tauri-apps/api` 已安装，接入 Rust commands 时可从 `@tauri-apps/api/core` 导入 `invoke`。
+当前使用 React Router 的 HashRouter，提供 `/deck`、`/browser`、`/status`、`/setting` 四个页面入口，根路径和未知路径回到 `/deck`。公共布局中的顶部导航通过 NavLink 自动显示选中状态，Outlet 承载页面内容；各页面暂为占位，不包含卡组树。尚未引入状态库和 UI 组件库。`@tauri-apps/api` 已安装，接入 Rust commands 时可从 `@tauri-apps/api/core` 导入 `invoke`。
 
 ## 环境
 

@@ -14,10 +14,10 @@
       {
         "label": "main",
         "title": "HyprAnki",
-        "width": 1100,
+        "width": 440,
         "height": 760,
-        "minWidth": 640,
-        "minHeight": 480
+        "minWidth": 320,
+        "minHeight": 560
       }
     ],
     "security": {
