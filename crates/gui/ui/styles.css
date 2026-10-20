@@ -27,6 +27,7 @@
   --color-border: var(--app-border);
   --color-secondary: var(--app-secondary);
   --color-muted: var(--app-muted);
+  --color-danger: var(--app-danger);
   --color-deck-icon: var(--app-deck-icon);
   --color-new: var(--app-new);
   --color-review: var(--app-review);

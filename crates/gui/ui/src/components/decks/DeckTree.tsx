@@ -1,18 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useDrop } from "react-dnd";
-import { Tree, type DragPreviewProps, type NodeRendererProps, type TreeApi } from "react-arborist";
+import { Tree, type CursorProps, type DragPreviewProps, type NodeRendererProps, type TreeApi } from "react-arborist";
 import { buildDeckTree, type DeckMove, type DeckNode } from "../../features/decks/deck-tree";
 import type { Deck } from "../../types/deck";
+import DeckContextMenu, { type DeckMenuAction } from "./DeckContextMenu";
 
 export interface DeckTreeProps {
   decks: readonly Deck[];
   onMove?: (move: DeckMove) => void;
   onCollapsedChange?: (id: number, collapsed: boolean) => void;
   onActivate?: (deck: Deck) => void;
+  onMenuAction?: (action: DeckMenuAction, deck: Deck) => void;
 }
 
-const DECK_DRAG_TYPE = "HYPRANKI_DECK";
-const DeckMoveContext = createContext<DeckTreeProps["onMove"]>(undefined);
+const DeckMenuContext = createContext<DeckTreeProps["onMenuAction"]>(undefined);
 
 const DeckPreviewContext = createContext<readonly Deck[]>([]);
 
@@ -20,7 +20,7 @@ function DeckDragPreview({ id, offset, isDragging }: DragPreviewProps) {
   const decks = useContext(DeckPreviewContext);
   const deck = decks.find((deck) => String(deck.id) === id);
   if (!isDragging || !offset || !deck) return null;
-  const hasChildren = decks.some((child) => child.parent_id === deck.id);
+  const hasChildren = deck.kind === "group";
 
   return (
     <div className="pointer-events-none fixed top-0 left-0 z-50 w-[min(300px,calc(100vw-40px))]" style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
@@ -36,35 +36,27 @@ function DeckDragPreview({ id, offset, isDragging }: DragPreviewProps) {
 }
 
 function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<DeckNode>) {
-  const onMove = useContext(DeckMoveContext);
-  const [{ isOver, canDrop }, drop] = useDrop<{ id: string }, unknown, { isOver: boolean; canDrop: boolean }>(() => ({
-    accept: DECK_DRAG_TYPE,
-    canDrop: ({ id }) => {
-      const source = tree.get(id);
-      return !preview && !!onMove && !!source && source.id !== node.id
-        && (node.children?.length ?? 0) > 0
-        && !source.isAncestorOf(node) && source.parent?.id !== node.id;
-    },
-    drop: ({ id }, monitor) => {
-      if (monitor.didDrop()) return;
-      const source = tree.get(id);
-      if (!source || !onMove || preview
-        || (node.children?.length ?? 0) === 0 || source.id === node.id
-        || source.isAncestorOf(node) || source.parent?.id === node.id) return;
-      onMove({ deck_id: source.data.deck.id, parent_id: node.data.deck.id, index: node.children?.length ?? 0 });
-      node.open();
-      return {};
-    },
-    collect: (monitor) => ({ isOver: monitor.isOver({ shallow: true }), canDrop: monitor.canDrop() }),
-  }), [node, tree, onMove, preview]);
-  const receiving = isOver && canDrop;
+  const onMenuAction = useContext(DeckMenuContext);
+  const receiving = node.willReceiveDrop;
   const hasChildren = node.children !== null && node.children.length > 0;
   return (
+    <DeckContextMenu name={node.data.deck.name} isFolder={node.data.deck.kind === "group"} onAction={(action) => {
+      if (action === "collapse" || action === "expand") {
+        const pending = [node];
+        while (pending.length) {
+          const current = pending.pop()!;
+          if (current.data.deck.kind === "group") {
+            if (action === "collapse") current.close();
+            else current.open();
+          }
+          pending.push(...current.children ?? []);
+        }
+      } else onMenuAction?.(action, node.data.deck);
+    }}>
     <div
-      ref={(element) => { drop(element); }}
       style={style}
       title={node.data.deck.name}
-      className={`relative flex h-full min-w-0 items-center gap-1 rounded-md pr-1 text-[13px] select-none ${receiving ? "bg-accent/10"
+      className={`relative flex h-full min-w-0 items-center gap-1 rounded-md pr-1 text-[13px] select-none ${receiving ? "bg-accent/10 ring-1 ring-inset ring-accent/60"
         : node.isSelected ? "bg-accent/10" : "hover:bg-hover"
         } transition-opacity duration-150 ${node.isDragging ? "opacity-20" : ""} ${node.isFocused ? "outline-1 -outline-offset-1 outline-focus" : ""}`}
     >
@@ -82,7 +74,7 @@ function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<D
             </svg>
           </button>
         ) : <span className="w-4 shrink-0" />}
-        {hasChildren ? (
+        {node.data.deck.kind === "group" ? (
           <svg role="img" aria-label="卡组分组" viewBox="0 0 20 20" className="mr-0.5 size-3.5 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">
             <path d="M2.5 6V4.5A1.5 1.5 0 0 1 4 3h4l2 2h6A1.5 1.5 0 0 1 17.5 6.5V15a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 15Z" />
             <path d="M2.5 7h15" />
@@ -101,21 +93,19 @@ function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<D
         <span aria-label={`待复习 ${node.data.deck.review_count} 张`} className={node.data.deck.review_count === 0 ? "text-muted/50" : "text-review"}>{node.data.deck.review_count}</span>
         </div>
       </div>
-      {receiving && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute right-1 bottom-0 h-0.5 rounded-full bg-accent"
-          style={{ left: (node.level + 1) * tree.indent }}
-        >
-        </div>
-      )}
     </div>
+    </DeckContextMenu>
   );
 }
 
-export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate }: DeckTreeProps) {
+function DeckInsertCursor({ top, left }: CursorProps) {
+  return <div aria-hidden="true" className="pointer-events-none absolute right-1 z-10 h-0.5 rounded-full bg-accent" style={{ top, left }} />;
+}
+
+export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate, onMenuAction }: DeckTreeProps) {
   const tree = useRef<TreeApi<DeckNode> | null>(null);
   const container = useRef<HTMLDivElement>(null);
+  const syncing = useRef(false);
   const [height, setHeight] = useState(1);
   const { nodes, error } = useMemo<{ nodes: DeckNode[]; error: String | null }>(() => {
     try { return { nodes: buildDeckTree(decks), error: null }; }
@@ -131,9 +121,21 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate 
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const api = tree.current;
+    if (!api) return;
+    syncing.current = true;
+    try {
+      for (const deck of decks) {
+        if (deck.is_collapsed && api.isOpen(String(deck.id))) api.close(String(deck.id));
+        else if (!deck.is_collapsed && !api.isOpen(String(deck.id))) api.open(String(deck.id));
+      }
+    } finally { syncing.current = false; }
+  }, [decks]);
+
   return (
+    <DeckMenuContext.Provider value={onMenuAction}>
     <DeckPreviewContext.Provider value={decks}>
-    <DeckMoveContext.Provider value={onMove}>
       <div
         ref={container}
         className="min-h-0 w-full flex-1 overflow-hidden [scrollbar-color:var(--app-border)_transparent]"
@@ -143,6 +145,7 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate 
             : <Tree<DeckNode>
               ref={tree}
               data={nodes}
+              childrenAccessor={(node) => node.deck.kind === "group" ? node.children : null}
               width="100%"
               height={height}
               rowHeight={34}
@@ -151,16 +154,27 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate 
               disableEdit
               disableMultiSelection
               disableDrag={!onMove}
-              // Dedicated row targets accept only reparenting, with no insertion slots.
-              dragType={DECK_DRAG_TYPE}
-              disableDrop
+              disableDrop={({ parentNode, dragNodes }) => !onMove
+                || (!parentNode.isRoot && parentNode.data.deck.kind !== "group")
+                || dragNodes.some((source) => source.id === parentNode.id || source.isAncestorOf(parentNode))}
+              onMove={({ dragNodes, parentId, parentNode, index }) => {
+                const source = dragNodes[0];
+                if (!source || !onMove) return;
+                const siblings = parentNode?.children ?? tree.current?.root.children ?? [];
+                const oldIndex = siblings.findIndex((node) => node.id === source.id);
+                // Arborist reports insertion slots before removing the source.
+                const destination = index - (oldIndex >= 0 && oldIndex < index ? 1 : 0);
+                onMove({ deck_id: source.data.deck.id, parent_id: parentId === null ? null : Number(parentId), index: destination });
+              }}
               onToggle={(id) => {
-                let node = tree.current!.get(id);
-                if (!node) return;
-                onCollapsedChange?.(node.data.deck.id, node.isClosed);
+                if (syncing.current) return;
+                // get() only finds visible nodes; recursive toggles also touch hidden descendants.
+                const deck = decks.find((deck) => String(deck.id) === id);
+                if (!deck || !tree.current) return;
+                onCollapsedChange?.(deck.id, !tree.current.isOpen(id));
               }}
               onActivate={(node) => onActivate?.(node.data.deck)}
-              renderCursor={() => null}
+              renderCursor={DeckInsertCursor}
               renderDragPreview={DeckDragPreview}
               aria-label="卡组树"
               className="rounded-md focus-visible:outline-2 focus-visible:outline-focus"
@@ -168,7 +182,7 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate 
               {DeckRow}
             </Tree>}
       </div>
-    </DeckMoveContext.Provider>
     </DeckPreviewContext.Provider>
+    </DeckMenuContext.Provider>
   );
 }
