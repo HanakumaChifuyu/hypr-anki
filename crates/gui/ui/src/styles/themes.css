@@ -1,0 +1,50 @@
+/* Color palettes; next-themes selects the data-theme attribute. */
+@layer base {
+  :root {
+    color-scheme: light;
+    --app-background: #f5f6fb;
+    --app-background-glow: #ffffff;
+    --app-foreground: #242334;
+    --app-surface: #ffffff;
+    --app-border: #dcdfea;
+    --app-secondary: #5c6175;
+    --app-muted: #697085;
+    --app-deck-icon: #3979ba;
+    --app-new: #2563b0;
+    --app-review: #287a54;
+    --app-accent: #7950b8;
+    --app-accent-start: #e4d5fa;
+    --app-accent-end: #c9acec;
+    --app-accent-foreground: #281d3b;
+    --app-hover: #36225408;
+    --app-hover-foreground: #4b2e70;
+    --app-pressed: #36225414;
+    --app-focus: #7950b8;
+    --app-shadow-navigation: 0 6px 20px #2520440a;
+    --app-shadow-selected: inset 0 1px 0 #ffffff80, 0 2px 8px #36225414;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --app-background: #0d151f;
+    --app-background-glow: #172231;
+    --app-foreground: #e5e9f0;
+    --app-surface: #18222f;
+    --app-border: #263345;
+    --app-secondary: #aeb9ca;
+    --app-muted: #8896aa;
+    --app-deck-icon: #83b9e8;
+    --app-new: #78b6f4;
+    --app-review: #7fcba4;
+    --app-accent: #c8a5ef;
+    --app-accent-start: #dac1ff;
+    --app-accent-end: #b996e9;
+    --app-accent-foreground: #281d3b;
+    --app-hover: #ffffff08;
+    --app-hover-foreground: #f0e8ff;
+    --app-pressed: #ffffff14;
+    --app-focus: #e5d2ff;
+    --app-shadow-navigation: 0 6px 20px #0000001a;
+    --app-shadow-selected: inset 0 1px 0 #ffffff40, 0 2px 8px #00000020;
+  }
+}

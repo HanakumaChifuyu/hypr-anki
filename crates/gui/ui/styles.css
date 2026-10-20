@@ -1,118 +1,61 @@
-:root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color-scheme: dark;
-  color: #e5e9f0;
-  background: #0d151f;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
+@import "tailwindcss";
+@import "./src/styles/themes.css";
 
-* {
-  box-sizing: border-box;
-}
+/* 全局设计 token：同时提供 CSS 变量和 Tailwind 工具类。 */
+@theme {
+  --animate-deck-lift: deck-lift 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 
-body {
-  margin: 0;
-  min-width: 280px;
-  min-height: 100vh;
-  background: radial-gradient(ellipse at top, #172231 0%, #0d151f 70%);
-}
-
-.app-shell {
-  width: 100%;
-  max-width: 440px;
-  min-height: 100vh;
-  margin-inline: auto;
-  padding: 24px 20px;
-}
-
-.app-header {
-  display: flex;
-  justify-content: center;
-}
-
-.main-nav {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: 100%;
-  max-width: 360px;
-  padding: 3px;
-  border: 1px solid #263345;
-  border-radius: 17px;
-  background: #18222f;
-  box-shadow: 0 6px 20px #0000001a;
-}
-
-.main-nav-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 34px;
-  padding: 6px 8px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-user-drag: none;
-  touch-action: manipulation;
-  border-radius: 13px;
-  color: #aeb9ca;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: color 150ms ease, background-color 150ms ease;
-}
-
-.main-nav-link:hover {
-  color: #f0e8ff;
-  background-color: #ffffff08;
-}
-
-.main-nav-link:active {
-  background-color: #ffffff14;
-}
-
-.main-nav-link.is-active {
-  color: #281d3b;
-  background: linear-gradient(135deg, #dac1ff, #b996e9);
-  box-shadow: inset 0 1px 0 #ffffff40, 0 2px 8px #00000020;
-}
-
-.main-nav-link:focus-visible {
-  outline: 2px solid #e5d2ff;
-  outline-offset: 3px;
-}
-
-.page-content {
-  margin-top: 24px;
-}
-
-.page-placeholder {
-  padding: 24px 0;
-}
-
-.page-placeholder h1 {
-  margin: 0 0 10px;
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.page-placeholder p {
-  margin: 0;
-  color: #8896aa;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-@media (max-width: 360px) {
-  .app-shell {
-    padding-inline: 16px;
+  @keyframes deck-lift {
+    from { transform: translateY(0) scale(1) rotate(0deg); box-shadow: none; }
+    to { transform: translateY(-5px) scale(1.025) rotate(-1deg); }
   }
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --radius-navigation: 17px;
+  --radius-control: 13px;
+  --container-app: 440px;
+  --container-navigation: 360px;
+  --background-image-accent-gradient: linear-gradient(135deg, var(--app-accent-start), var(--app-accent-end));
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .main-nav-link {
-    transition: none;
+@theme inline {
+  --color-background: var(--app-background);
+  --color-background-glow: var(--app-background-glow);
+  --color-foreground: var(--app-foreground);
+  --color-surface: var(--app-surface);
+  --color-border: var(--app-border);
+  --color-secondary: var(--app-secondary);
+  --color-muted: var(--app-muted);
+  --color-deck-icon: var(--app-deck-icon);
+  --color-new: var(--app-new);
+  --color-review: var(--app-review);
+  --color-accent: var(--app-accent);
+  --color-accent-start: var(--app-accent-start);
+  --color-accent-end: var(--app-accent-end);
+  --color-accent-foreground: var(--app-accent-foreground);
+  --color-hover: var(--app-hover);
+  --color-hover-foreground: var(--app-hover-foreground);
+  --color-pressed: var(--app-pressed);
+  --color-focus: var(--app-focus);
+  --shadow-navigation: var(--app-shadow-navigation);
+  --shadow-selected: var(--app-shadow-selected);
+}
+
+@layer base {
+  :root {
+    font-family: var(--font-sans);
+    color: var(--app-foreground);
+    background: var(--app-background);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    min-width: 280px;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, var(--app-background-glow) 0%, var(--app-background) 70%);
   }
 }
