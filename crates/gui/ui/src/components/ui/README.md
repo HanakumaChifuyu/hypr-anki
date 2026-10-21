@@ -35,3 +35,5 @@ import {
 子菜单由 `ContextMenuSub`、`ContextMenuSubTrigger`、`ContextMenuSubContent` 组合。`ContextMenuShortcut` 仅显示快捷键提示，不注册快捷键。图标可直接放在菜单项内。
 
 业务数据和重命名、删除、新建等逻辑由调用方负责。卡组菜单在 `../decks/DeckContextMenu.tsx`，当前由 DeckPage 操作内存中的演示数据，刷新后恢复。
+
+DeckTree 使用 react-arborist 的 `node.edit()`、`node.submit()`、`node.reset()` 管理行内编辑。重命名通过 `onRename(id, name)` 通知父组件；新建先插入仅用于展示的临时行，确认后通过 `onCreate(draft)` 通知父组件分配正式 ID 并写入列表，取消不修改正式数据。Enter 确认、Esc 取消，失焦时保存非空名称、取消空白新建行。删除仍使用确认弹窗。

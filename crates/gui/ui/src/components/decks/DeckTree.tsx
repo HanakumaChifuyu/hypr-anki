@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Tree, type CursorProps, type DragPreviewProps, type NodeRendererProps, type TreeApi } from "react-arborist";
 import { buildDeckTree, type DeckMove, type DeckNode } from "../../features/decks/deck-tree";
+import { insertDeck } from "../../features/decks/deck-actions";
 import type { Deck } from "../../types/deck";
 import DeckContextMenu, { type DeckMenuAction } from "./DeckContextMenu";
 
@@ -10,6 +11,9 @@ export interface DeckTreeProps {
   onCollapsedChange?: (id: number, collapsed: boolean) => void;
   onActivate?: (deck: Deck) => void;
   onMenuAction?: (action: DeckMenuAction, deck: Deck) => void;
+  onRename?: (id: number, name: string) => void;
+  /** Receives a confirmed draft; the caller assigns its persistent ID and timestamps. */
+  onCreate?: (deck: Deck) => void;
 }
 
 const DeckMenuContext = createContext<DeckTreeProps["onMenuAction"]>(undefined);
@@ -35,7 +39,49 @@ function DeckDragPreview({ id, offset, isDragging }: DragPreviewProps) {
   );
 }
 
-function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<DeckNode>) {
+function DeckNameEditor({ node }: { node: NodeRendererProps<DeckNode>["node"] }) {
+  const input = useRef<HTMLInputElement>(null);
+  const finished = useRef(false);
+  const [name, setName] = useState(node.data.deck.name);
+  const [error, setError] = useState(false);
+  useEffect(() => { input.current?.focus(); input.current?.select(); }, []);
+
+  function confirm() {
+    if (finished.current) return;
+    const value = name.trim();
+    if (!value) { setError(true); input.current?.focus(); return; }
+    finished.current = true;
+    node.submit(value);
+  }
+
+  function cancel() {
+    if (finished.current) return;
+    finished.current = true;
+    node.reset();
+  }
+
+  return <input
+    ref={input}
+    aria-label="名称"
+    aria-invalid={error}
+    title={error ? "名称不能为空" : "Enter 确认，Esc 取消"}
+    placeholder={node.data.deck.kind === "group" ? "文件夹名称" : "Deck 名称"}
+    value={name}
+    className={`h-6 min-w-0 flex-1 rounded border bg-background px-1.5 text-[13px] text-foreground outline-none ${error ? "border-danger" : "border-focus"}`}
+    onChange={(event) => { setName(event.target.value); setError(false); }}
+    onClick={(event) => event.stopPropagation()}
+    onDoubleClick={(event) => event.stopPropagation()}
+    onKeyDown={(event) => {
+      event.stopPropagation();
+      if (event.nativeEvent.isComposing) return;
+      if (event.key === "Enter") { event.preventDefault(); confirm(); }
+      if (event.key === "Escape") { event.preventDefault(); cancel(); }
+    }}
+    onBlur={() => { if (name.trim()) confirm(); else cancel(); }}
+  />;
+}
+
+function DeckRow({ node, style, dragHandle }: NodeRendererProps<DeckNode>) {
   const onMenuAction = useContext(DeckMenuContext);
   const receiving = node.willReceiveDrop;
   const hasChildren = node.children !== null && node.children.length > 0;
@@ -51,7 +97,15 @@ function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<D
           }
           pending.push(...current.children ?? []);
         }
-      } else onMenuAction?.(action, node.data.deck);
+      } else if (action === "rename") {
+        void node.edit();
+      } else {
+        if (action === "create-folder" || action === "create-deck") {
+          const parent = node.data.deck.kind === "group" ? node : node.parent;
+          if (parent && !parent.isRoot) parent.open();
+        }
+        onMenuAction?.(action, node.data.deck);
+      }
     }}>
     <div
       style={style}
@@ -60,7 +114,7 @@ function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<D
         : node.isSelected ? "bg-accent/10" : "hover:bg-hover"
         } transition-opacity duration-150 ${node.isDragging ? "opacity-20" : ""} ${node.isFocused ? "outline-1 -outline-offset-1 outline-focus" : ""}`}
     >
-      <div ref={dragHandle} className="flex min-w-0 flex-1 items-center gap-0.5">
+      <div ref={node.isEditing ? undefined : dragHandle} className="flex min-w-0 flex-1 items-center gap-0.5">
         {hasChildren ? (
           <button
             type="button"
@@ -85,7 +139,7 @@ function DeckRow({ node, tree, style, dragHandle, preview }: NodeRendererProps<D
             <path d="M12 17H5a1 1 0 0 1-1-1V7" />
           </svg>
         )}
-        <span className={`truncate ${node.level === 0 ? "font-medium text-foreground" : "text-secondary"}`}>{node.data.deck.name}</span>
+        {node.isEditing ? <DeckNameEditor node={node} /> : <span className={`truncate ${node.level === 0 ? "font-medium text-foreground" : "text-secondary"}`}>{node.data.deck.name}</span>}
       </div>
       <div className="grid shrink-0 grid-cols-[40px] items-center gap-x-1 text-center text-[10px] font-medium tabular-nums">
         <div className="flex flex-col items-center leading-3">
@@ -102,15 +156,37 @@ function DeckInsertCursor({ top, left }: CursorProps) {
   return <div aria-hidden="true" className="pointer-events-none absolute right-1 z-10 h-0.5 rounded-full bg-accent" style={{ top, left }} />;
 }
 
-export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate, onMenuAction }: DeckTreeProps) {
+export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate, onMenuAction, onRename, onCreate }: DeckTreeProps) {
   const tree = useRef<TreeApi<DeckNode> | null>(null);
   const container = useRef<HTMLDivElement>(null);
-  const syncing = useRef(false);
+  const [initialOpenState] = useState(() => Object.fromEntries(
+    decks.map((deck) => [String(deck.id), !deck.is_collapsed]),
+  ));
   const [height, setHeight] = useState(1);
+  const [draft, setDraft] = useState<Deck | null>(null);
   const { nodes, error } = useMemo<{ nodes: DeckNode[]; error: String | null }>(() => {
-    try { return { nodes: buildDeckTree(decks), error: null }; }
+    try { return { nodes: buildDeckTree(draft ? insertDeck(decks, draft) : decks), error: null }; }
     catch (error) { return { nodes: [], error: error instanceof Error ? error.message : "卡组数据无效。" }; }
-  }, [decks]);
+  }, [decks, draft]);
+
+  // A draft is only a view row. Arborist owns its edit session and cancellation.
+  useEffect(() => {
+    if (!draft || !tree.current) return;
+    void tree.current.edit(String(draft.id)).then(() => setDraft((current) => current === draft ? null : current));
+  }, [draft]);
+
+  function handleMenuAction(action: DeckMenuAction, deck: Deck) {
+    if (action === "create-folder" || action === "create-deck") {
+      if (!onCreate) return;
+      setDraft({
+        id: Math.min(0, ...decks.map((item) => item.id)) - 1,
+        name: "", kind: action === "create-folder" ? "group" : "deck",
+        parent_id: deck.kind === "group" ? deck.id : deck.parent_id,
+        is_collapsed: false, new_count: 0, review_count: 0,
+        config_id: deck.config_id, created_at: 0, updated_at: 0,
+      });
+    } else onMenuAction?.(action, deck);
+  }
   useEffect(() => {
     const element = container.current;
     if (!element) return;
@@ -121,20 +197,8 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate,
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const api = tree.current;
-    if (!api) return;
-    syncing.current = true;
-    try {
-      for (const deck of decks) {
-        if (deck.is_collapsed && api.isOpen(String(deck.id))) api.close(String(deck.id));
-        else if (!deck.is_collapsed && !api.isOpen(String(deck.id))) api.open(String(deck.id));
-      }
-    } finally { syncing.current = false; }
-  }, [decks]);
-
   return (
-    <DeckMenuContext.Provider value={onMenuAction}>
+    <DeckMenuContext.Provider value={handleMenuAction}>
     <DeckPreviewContext.Provider value={decks}>
       <div
         ref={container}
@@ -151,9 +215,14 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate,
               rowHeight={34}
               indent={14}
               openByDefault
-              disableEdit
+              initialOpenState={initialOpenState}
+              disableEdit={(node) => node.deck.id === draft?.id ? !onCreate : !onRename}
+              onRename={({ id, name }) => {
+                if (draft && id === String(draft.id)) onCreate?.({ ...draft, name });
+                else onRename?.(Number(id), name);
+              }}
               disableMultiSelection
-              disableDrag={!onMove}
+              disableDrag={(node) => !onMove || tree.current?.editingId === node.id || node.deck.id === draft?.id}
               disableDrop={({ parentNode, dragNodes }) => !onMove
                 || (!parentNode.isRoot && parentNode.data.deck.kind !== "group")
                 || dragNodes.some((source) => source.id === parentNode.id || source.isAncestorOf(parentNode))}
@@ -167,7 +236,6 @@ export default function DeckTree({ decks, onMove, onCollapsedChange, onActivate,
                 onMove({ deck_id: source.data.deck.id, parent_id: parentId === null ? null : Number(parentId), index: destination });
               }}
               onToggle={(id) => {
-                if (syncing.current) return;
                 // get() only finds visible nodes; recursive toggles also touch hidden descendants.
                 const deck = decks.find((deck) => String(deck.id) === id);
                 if (!deck || !tree.current) return;
