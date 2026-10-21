@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import DeckTree from "../components/decks/DeckTree";
-import type { DeckMenuAction } from "../components/decks/DeckContextMenu";
+import DeckTree, { type DeckMenuAction } from "../components/decks/DeckTree";
 import { deckSubtreeIds, insertDeck } from "../features/decks/deck-actions";
 import { moveDeck, type DeckMove } from "../features/decks/deck-tree";
 import { sampleDecks } from "../features/decks/sample-decks";
@@ -13,14 +12,24 @@ export default function DeckPage() {
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const nextId = useRef(Math.max(0, ...sampleDecks.map((deck) => deck.id)) + 1);
 
-  function handleMenuAction(action: DeckMenuAction, deck: Deck) {
-    if (action === "delete") setPendingDelete(deck);
+  function handleAction(action: DeckMenuAction) {
+    switch (action.type) {
+      case "create":
+        handleCreate(action.deck, action.afterId);
+        break;
+      case "rename":
+        handleRename(action.id, action.name);
+        break;
+      case "delete":
+        setPendingDelete(action.deck);
+        break;
+    }
   }
 
-  function handleCreate(draft: Deck) {
+  function handleCreate(draft: Deck, afterId: number) {
     const now = Math.floor(Date.now() / 1000);
     const deck = { ...draft, id: nextId.current++, created_at: now, updated_at: now };
-    setDecks((current) => insertDeck(current, deck));
+    setDecks((current) => insertDeck(current, deck, afterId));
   }
 
   function handleRename(id: number, name: string) {
@@ -59,9 +68,7 @@ export default function DeckPage() {
       <DeckTree
         decks={decks}
         onMove={handleMove}
-        onMenuAction={handleMenuAction}
-        onCreate={handleCreate}
-        onRename={handleRename}
+        onAction={handleAction}
         onCollapsedChange={(id, collapsed) => setDecks((current) => current.map((deck) => deck.id === id ? { ...deck, is_collapsed: collapsed } : deck))}
       />
       <Dialog.Root open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>

@@ -9,7 +9,22 @@ export function deckSubtreeIds(decks: readonly Deck[], id: number): Set<number> 
   return ids;
 }
 
-export function insertDeck(decks: readonly Deck[], deck: Deck): Deck[] {
+/** afterId places a row immediately below its parent or a sibling deck. */
+export function insertDeck(decks: readonly Deck[], deck: Deck, afterId?: number): Deck[] {
+  if (afterId !== undefined) {
+    const anchorIndex = decks.findIndex((item) => item.id === afterId);
+    const anchor = decks[anchorIndex];
+    if (!anchor || !(anchor.kind === "group" && anchor.id === deck.parent_id
+      || anchor.kind === "deck" && anchor.parent_id === deck.parent_id)) {
+      throw new Error("新建位置无效。");
+    }
+    if (deck.parent_id !== null && !decks.some((item) => item.id === deck.parent_id && item.kind === "group")) {
+      throw new Error("只能在文件夹内创建项目。");
+    }
+    const result = decks.map((item) => item.id === deck.parent_id ? { ...item, is_collapsed: false } : item);
+    result.splice(anchorIndex + 1, 0, deck);
+    return result;
+  }
   if (deck.parent_id === null) return [...decks, deck];
   const parent = decks.find((item) => item.id === deck.parent_id);
   if (!parent || parent.kind !== "group") throw new Error("只能在文件夹内创建项目。");
