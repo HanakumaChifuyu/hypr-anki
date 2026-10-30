@@ -1,5 +1,5 @@
-use stores::db::pool::SqlitePool;
-use stores::repository::deck::DeckRepository;
+use hypranki_storage::db::pool::SqlitePool;
+use hypranki_storage::repository::deck::DeckRepository;
 
 use crate::app::FromRef;
 

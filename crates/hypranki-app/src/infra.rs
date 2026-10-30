@@ -1,6 +1,6 @@
 use anyhow::Result;
+use hypranki_storage::db::pool::SqlitePool;
 use std::path::PathBuf;
-use stores::db::pool::SqlitePool;
 
 use crate::app::FromRef;
 
