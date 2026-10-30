@@ -22,8 +22,8 @@ impl SqlitePool {
             .max_connections(5)
             .min_connections(1)
             .acquire_timeout(Duration::from_secs(3))
-            .idle_timeout(Duration::from_millis(10))
-            .max_lifetime(Duration::from_millis(30))
+            .idle_timeout(Duration::from_secs(10 * 60))
+            .max_lifetime(Duration::from_secs(30 * 60))
             .connect_with(sqlite_option)
             .await?)
     }
@@ -36,5 +36,10 @@ impl SqlitePool {
     pub fn inner(&self) -> &Pool<Sqlite> {
         &self.inner_pool
     }
-}
 
+    pub async fn migrate(&self, migr_dir: impl AsRef<Path>) -> Result<()> {
+        let migrator = sqlx::migrate::Migrator::new(migr_dir.as_ref()).await?;
+        migrator.run(self.inner()).await?;
+        Ok(())
+    }
+}
