@@ -1,15 +1,31 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use hypranki_storage::models::deck::Deck;
-use hypranki_storage::repository::deck;
+use anyhow::{Result, anyhow, ensure};
+use hypranki_storage::models::deck::{CreateDeck, Deck};
+use hypranki_storage::repository::deck::DeckRepository;
 
-struct DeckService {
-    deck_repo: deck::DeckRepository,
+#[derive(Debug, Clone)]
+pub struct DeckService {
+    deck_repo: DeckRepository,
 }
 
 impl DeckService {
-    pub fn to_preorder(decks: &Vec<Deck>) -> Vec<&Deck> {
-        // 邻接表
+    pub fn new(deck_repo: DeckRepository) -> Self {
+        Self { deck_repo }
+    }
+
+    /// 完整先序序列；同级按 ID 升序，忽略折叠状态。
+    pub fn to_preorder(decks: &[Deck]) -> Vec<&Deck> {
+        Self::traverse(decks, None, false)
+    }
+
+    /// 仅返回可见节点，折叠节点自身仍保留。
+    pub fn to_visible_preorder(decks: &[Deck]) -> Vec<&Deck> {
+        Self::traverse(decks, None, true)
+    }
+
+    // 使用显式栈，避免很深的树耗尽调用栈。异常环中的节点最多访问一次。
+    fn traverse(decks: &[Deck], root: Option<i64>, visible_only: bool) -> Vec<&Deck> {
         let mut children: HashMap<Option<i64>, Vec<&Deck>> = HashMap::new();
         for deck in decks {
             children.entry(deck.parent_id).or_default().push(deck);
@@ -17,22 +33,26 @@ impl DeckService {
         for siblings in children.values_mut() {
             siblings.sort_unstable_by_key(|deck| deck.id);
         }
-
-        fn visit<'a>(
-            parent_id: Option<i64>,
-            children: &HashMap<Option<i64>, Vec<&'a Deck>>,
-            result: &mut Vec<&'a Deck>,
-        ) {
-            if let Some(siblings) = children.get(&parent_id) {
-                for &deck in siblings {
-                    result.push(deck);
-                    visit(Some(deck.id), children, result);
+        let mut stack: Vec<&Deck> = match root {
+            Some(id) => decks.iter().find(|d| d.id == id).into_iter().collect(),
+            None => children
+                .get(&None)
+                .map(|roots| roots.iter().rev().copied().collect())
+                .unwrap_or_default(),
+        };
+        let mut visited = HashSet::new();
+        let mut result = Vec::new();
+        while let Some(deck) = stack.pop() {
+            if !visited.insert(deck.id) {
+                continue;
+            }
+            result.push(deck);
+            if !(visible_only && deck.is_collapsed) {
+                if let Some(nodes) = children.get(&Some(deck.id)) {
+                    stack.extend(nodes.iter().rev().copied());
                 }
             }
         }
-
-        let mut result: Vec<&Deck> = Vec::new();
-        visit(None, &children, &mut result);
         result
     }
 }
