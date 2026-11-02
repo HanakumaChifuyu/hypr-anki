@@ -11,6 +11,8 @@
 | 表名 (Table) | 描述 (Description) | 详细文档 (Details) | 对应 Model | 对应 Repository |
 | :--- | :--- | :--- | :--- | :--- |
 | **`DECKS`** | 牌组表（基础元数据、树形父子关系、折叠状态） | [decks.md](./tables/decks.md) | `models::deck::Deck` | `repository::deck::DeckRepository` |
+| **`NOTETYPES`** | 笔记类型及字段定义 | [notes.md](./tables/notes.md) | `models::note::NoteType` | `repository::note_type::NoteTypeRepository` |
+| **`NOTES`** | 笔记内容 | [notes.md](./tables/notes.md) | `models::note::Note` | `repository::note::NoteRepository` |
 
 > 随着后续业务扩展，新增的表（如 `CARDS`、`MODELS`、`REVIEWS`、`DECK_CONFIGS` 等）请在此登记。
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use stores::db::pool;
+use hypranki_storage::db::pool;
 use tempfile::tempdir;
 
 #[tokio::test]

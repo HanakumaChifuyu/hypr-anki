@@ -3,4 +3,4 @@ members = ["crates/*"]
 resolver = "3"
 
 [workspace.dependencies]
-stores = { path = "./crates/stores" }
+hypranki-storage = { path = "./crates/hypranki-storage" }
