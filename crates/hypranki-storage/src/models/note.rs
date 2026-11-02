@@ -19,6 +19,7 @@ pub enum FieldType {
 pub struct Field {
     pub name: String,
     pub field_type: FieldType,
+    pub writability: bool,
 }
 
 #[derive(Debug, FromRow)]
@@ -133,14 +134,17 @@ mod tests {
                 Field {
                     name: "Front".into(),
                     field_type: FieldType::Str,
+                    writability: true,
                 },
                 Field {
                     name: "Data".into(),
                     field_type: FieldType::Json,
+                    writability: false,
                 },
                 Field {
                     name: "Audio".into(),
                     field_type: FieldType::Media,
+                    writability: true,
                 },
             ],
         }
@@ -152,6 +156,25 @@ mod tests {
             note_type: 1,
             content: json!({"Front": "hello", "Data": {}, "Audio": "hello.mp3"}),
         }
+    }
+
+    #[test]
+    fn field_requires_explicit_writability() -> Result<()> {
+        let missing_writability = serde_json::from_value::<Field>(json!({
+            "name": "Front",
+            "field_type": "Str"
+        }));
+        assert!(missing_writability.is_err());
+
+        let readonly: Field = serde_json::from_value(json!({
+            "name": "Data",
+            "field_type": "Json",
+            "writability": false
+        }))?;
+        assert!(!readonly.writability);
+        let serialized = serde_json::to_value(&readonly)?;
+        assert_eq!(serialized["writability"], json!(false));
+        Ok(())
     }
 
     #[test]

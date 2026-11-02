@@ -13,6 +13,10 @@
 
 除自增主键外，各列无默认值。两张表均使用 STRICT 模式。
 `FieldType` 按 Serde 默认表示存为 `Str`、`Json`、`Media`。
+每个字段定义包含 `name`、`field_type`、`writability`；`writability` 是必填布尔值，
+反序列化时缺少该属性会报错。
+该属性随 `fields` JSON 一同保存，无需新增数据库列。
+目前 `validate` 只检查字段存在及类型，仓储更新尚未强制执行只读限制。
 存在引用笔记时，删除笔记类型会返回数据库外键错误。
 
 ```sql
