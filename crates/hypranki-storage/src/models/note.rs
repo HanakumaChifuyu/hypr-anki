@@ -165,8 +165,13 @@ mod tests {
         let mut note = note();
         note.note_type = 2;
         let error = note.validate(note_type()).unwrap_err();
-        assert!(matches!(error.downcast_ref::<FieldValidError>(),
-            Some(FieldValidError::NoteTypeMiss { id: 1, name }) if name == "Basic"));
+        let Some(FieldValidError::NoteTypeMiss { id, name }) =
+            error.downcast_ref::<FieldValidError>()
+        else {
+            panic!("expected NoteTypeMiss, got {error:?}");
+        };
+        assert_eq!(*id, 1);
+        assert_eq!(name, "Basic");
     }
 
     #[test]
@@ -174,16 +179,15 @@ mod tests {
         let mut note = note();
         note.content = json!({"Front": "hello"});
         let error = note.validate(note_type()).unwrap_err();
-        match error.downcast_ref::<FieldValidError>() {
-            Some(FieldValidError::FieldsMiss {
-                count,
-                missed_field_list,
-            }) => {
-                assert_eq!(*count, 2);
-                assert_eq!(missed_field_list, " - Data\n - Audio");
-            }
-            other => panic!("expected FieldsMiss, got {other:?}"),
-        }
+        let Some(FieldValidError::FieldsMiss {
+            count,
+            missed_field_list,
+        }) = error.downcast_ref::<FieldValidError>()
+        else {
+            panic!("expected FieldsMiss, got {error:?}");
+        };
+        assert_eq!(*count, 2);
+        assert_eq!(missed_field_list, " - Data\n - Audio");
     }
 
     #[test]
@@ -198,11 +202,12 @@ mod tests {
             let mut note = note();
             note.content[field] = value;
             let error = note.validate(note_type()).unwrap_err();
-            assert!(
-                matches!(error.downcast_ref::<FieldValidError>(),
-                Some(FieldValidError::TypeDismatch { type_name }) if type_name == expected_type),
-                "unexpected error for {field}: {error}"
-            );
+            let Some(FieldValidError::TypeDismatch { type_name }) =
+                error.downcast_ref::<FieldValidError>()
+            else {
+                panic!("expected TypeDismatch for {field}, got {error:?}");
+            };
+            assert_eq!(type_name, expected_type, "unexpected type for {field}");
         }
     }
 }
