@@ -59,6 +59,7 @@
               rust-analyzer
               cargo-generate
               sqlx-cli
+              prettier
               nodejs_24
               pnpm
               pkg-config
