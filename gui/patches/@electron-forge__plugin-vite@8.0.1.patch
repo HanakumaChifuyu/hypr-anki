@@ -1,0 +1,60 @@
+diff --git a/dist/VitePlugin.js b/dist/VitePlugin.js
+index cff877e9de5b96ed6c209f8b0d2152fe70582712..6e0a5bc9d54992d8a73249c5b23cd6f7d3723d75 100644
+--- a/dist/VitePlugin.js
++++ b/dist/VitePlugin.js
+@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
+ import path from 'node:path';
+ import { styleText } from 'node:util';
+ import { readJson, writeJson } from '@electron-forge/core-utils';
++import { requestAppRestart } from '@electron-forge/core-utils/restart';
+ import { namedHookWithTaskFn, PluginBase } from '@electron-forge/plugin-base';
+ import debug from 'debug';
+ import { PRESET_TIMER } from 'listr2';
+@@ -75,7 +76,7 @@ function spawnViteBuild(pluginConfig, kind, index, projectDir) {
+         });
+     });
+ }
+-function spawnViteBuildWatch(pluginConfig, index, projectDir, devServerUrls, onReloadRenderers) {
++function spawnViteBuildWatch(pluginConfig, index, projectDir, devServerUrls, onReloadRenderers, onRestartApp) {
+     const child = spawn(process.execPath, [subprocessWorkerPath], {
+         cwd: projectDir,
+         env: {
+@@ -114,6 +115,9 @@ function spawnViteBuildWatch(pluginConfig, index, projectDir, devServerUrls, onR
+             else if (msg.type === 'first-build-error') {
+                 settle(() => reject(new Error(msg.message)));
+             }
++            else if (msg.type === 'restart-app') {
++                onRestartApp();
++            }
+             else if (msg.type === 'reload-renderers') {
+                 onReloadRenderers();
+             }
+@@ -317,6 +321,10 @@ the generated files). Instead, it is ${JSON.stringify(pj.main)}.`);
+                     for (const server of this.servers) {
+                         server.ws.send({ type: 'full-reload' });
+                     }
++                }, () => {
++                    if (this.config.hotRestart && !requestAppRestart()) {
++                        console.warn('[@electron-forge/plugin-vite] Main process rebuilt, but app restart failed.');
++                    }
+                 });
+                 this.watchChildren.push(child);
+                 await firstBuild;
+diff --git a/dist/subprocess-worker.js b/dist/subprocess-worker.js
+index 19159bd2d1f51f566df87f54c0d953e89e309e96..6db6e381ba02711d8140f9c6d5c78b85e0fe44d2 100644
+--- a/dist/subprocess-worker.js
++++ b/dist/subprocess-worker.js
+@@ -84,7 +84,12 @@ else {
+                         sendOnce({ type: 'first-build-error', message: err.message });
+                     }
+                 },
+-                closeBundle() {
++                closeBundle(error) {
++                    if (error) return;
++                    const isRebuild = firstBuildSent;
++                    if (target === 'main' && isRebuild) {
++                        process.send?.({ type: 'restart-app' });
++                    }
+                     sendOnce({ type: 'first-build-done' });
+                     if (target === 'preload') {
+                         // pluginHotRestart('reload') is a no-op here because viteDevServers

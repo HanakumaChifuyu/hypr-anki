@@ -3,3 +3,6 @@ allowBuilds:
   electron-winstaller: true
 
 nodeLinker: hoisted
+
+patchedDependencies:
+  '@electron-forge/plugin-vite@8.0.1': patches/@electron-forge__plugin-vite@8.0.1.patch
