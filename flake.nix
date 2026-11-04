@@ -60,7 +60,7 @@
               cargo-generate
               sqlx-cli
               nodejs_24
-              cargo-tauri
+              pnpm
               pkg-config
               cmake
             ];
