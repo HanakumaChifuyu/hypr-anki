@@ -16,8 +16,10 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "release": "electron-forge release",
-    "lint": "oxlint && oxfmt --check",
-    "lint:fix": "oxlint --fix && oxfmt --write",
+    "lint": "oxlint && oxfmt --check && pnpm format:check",
+    "lint:fix": "oxlint --fix && oxfmt --write && pnpm format",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
     "typecheck": "tsc --noEmit"
   },
   "devEngines": {
