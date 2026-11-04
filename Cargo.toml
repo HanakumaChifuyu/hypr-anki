@@ -4,3 +4,7 @@ resolver = "3"
 
 [workspace.dependencies]
 hypranki-storage = { path = "./crates/hypranki-storage" }
+
+[workspace.lints.rust]
+unused = { level = "allow", priority = -1 }
+unused_must_use = "deny"
