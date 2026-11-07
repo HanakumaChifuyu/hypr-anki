@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 export function Icon({
   children,
-  className = 'size-6',
+  className = 'size-4',
 }: {
   children: ReactNode;
   className?: string;
@@ -95,8 +95,8 @@ const items = [
 export function Navigation() {
   return (
     <nav
-      className="flex w-14 shrink-0 flex-col items-center gap-3 border-r 
-      border-[#353535] pt-3 sm:w-14"
+      className="flex w-14 shrink-0 flex-col items-center gap-1 border-r 
+      border-white/[0.08] pt-3 sm:w-14"
       aria-label="主导航"
     >
       {items.map(({ to, label, icon }) => (

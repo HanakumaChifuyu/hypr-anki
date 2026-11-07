@@ -16,7 +16,7 @@ const createWindow = () => {
     ...(process.platform === 'darwin'
       ? {
           titleBarStyle: 'hidden' as const,
-          trafficLightPosition: { x: 15, y: 12 },
+          trafficLightPosition: { x: 12, y: 10 },
         }
       : {}),
     backgroundColor: '#171717',
