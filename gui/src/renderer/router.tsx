@@ -3,39 +3,38 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  RouteComponent,
 } from '@tanstack/react-router';
 import AppLayout from './component/rootRouter';
 
-// Keep the router instance outside component Fast Refresh boundaries.
-const rootRoute = createRootRoute({ component: AppLayout });
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: () => <section aria-label="牌组" />,
-});
-const reviewRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/review',
-  component: () => <section aria-label="复习" />,
-});
-const manageRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/manage',
-  component: () => <section aria-label="管理" />,
-});
-const statisticsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/statistics',
-  component: () => <section aria-label="统计" />,
+export class AppRouteItem {
+  constructor(
+    public path: string,
+    public name: string,
+    public component: RouteComponent | undefined = undefined,
+  ) {}
+}
+
+export const routeItems = [
+  new AppRouteItem('/', '牌组'),
+  new AppRouteItem('/review', '复习'),
+  new AppRouteItem('/manage', '管理'),
+  new AppRouteItem('/statistic', '统计'),
+];
+
+const routes = routeItems.map((v) => {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: v.path,
+    component: () => <section aria-label={v.name} />,
+  });
 });
 
+// Keep the router instance outside component Fast Refresh boundaries.
+const rootRoute = createRootRoute({ component: AppLayout });
+
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([
-    indexRoute,
-    reviewRoute,
-    manageRoute,
-    statisticsRoute,
-  ]),
+  routeTree: rootRoute.addChildren(routes),
   history: createHashHistory(),
   defaultPreload: 'intent',
   scrollRestoration: true,

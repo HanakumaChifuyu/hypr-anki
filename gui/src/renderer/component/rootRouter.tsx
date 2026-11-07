@@ -1,17 +1,15 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { Navigation } from './Navigation';
-
-const titles: Record<string, string> = {
-  '/': '牌组',
-  '/review': '复习',
-  '/manage': '管理',
-  '/statistics': '统计',
-};
+import { AppRouteItem, routeItems } from '../router';
 
 export default function AppLayout() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
+
+  let name = routeItems.filter((v) => {
+    return v.path === pathname;
+  })[0].name;
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#181818] text-zinc-200 m-0">
       <header
@@ -19,8 +17,8 @@ export default function AppLayout() {
       border-b  border-white/8 items-center [-webkit-app-region:drag]"
       >
         <div className="w-22 shrink-0" />
-          {titles[pathname] ?? '牌组'}
         <h1 className="m-0 text-sm font-normal text-[#a1a1aa] select-none">
+          {name}
         </h1>
       </header>
       <div className="flex min-h-0 flex-1 pt-0 bg-[#181818]">
