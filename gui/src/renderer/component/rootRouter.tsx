@@ -8,7 +8,7 @@ export default function AppLayout() {
   })
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#181818] text-zinc-200 m-0">
+    <div className="flex h-screen flex-col overflow-hidden bg-surface text-content m-0">
       <header
         className="relative flex h-10 shrink-0  justify-start 
       border-b  border-white/8 items-center [-webkit-app-region:drag]"
@@ -18,7 +18,7 @@ export default function AppLayout() {
         {currentRoute?.staticData.label ?? " "}
         </h1>
       </header>
-      <div className="flex min-h-0 flex-1 pt-0 bg-[#181818]">
+      <div className="flex min-h-0 flex-1 pt-0 bg-surface">
         <Navigation />
         <main className="min-w-0 flex-1 overflow-y-auto px-6 pb-6 pt-5 sm:px-5">
           <Outlet />
