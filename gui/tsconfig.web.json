@@ -3,7 +3,7 @@
     "target": "ESNext",
     "module": "preserve",
     "moduleResolution": "bundler",
-    "types": [],
+    "types": ["vitest/importMeta"],
     "jsx": "react-jsx",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "strictNullChecks": true,

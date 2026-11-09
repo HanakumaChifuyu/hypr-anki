@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import AppLayout from './component/rootRouter';
+import { Deck } from './pages/deck-tree';
 
 type NavigationMetadata = {
   label: string;
@@ -40,6 +41,7 @@ export const routes = [
         <path d="M4 16h16M5 20h14" />
       </>
     ),
+    component: Deck,
   }),
   defineAppRoute({
     path: '/review',
