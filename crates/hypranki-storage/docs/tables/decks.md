@@ -16,7 +16,7 @@
 CREATE TABLE IF NOT EXISTS DECKS (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
-  is_collapsed INTEGER NOT NULL,
+  folder INTEGER NOT NULL DEFAULT 0 CHECK (folder IN (0, 1)),
   parent_id INTEGER,
   config_id INTEGER NOT NULL,
   created_at INTEGER NOT NULL,
@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_decks_config_id ON DECKS (config_id);
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | `INTEGER` | `i64` | 否 | 主键自增 | 牌组的唯一数字 ID |
 | `name` | `TEXT` | `String` | 否 | 非空字符串 | **牌组的局部名称（叶子名）**。例如 `"Vocab"`，不包含父级前缀 |
-| `is_collapsed` | `INTEGER` | `bool` | 否 | `0` 或 `1` | UI 树形界面折叠状态。`0` 表示展开，`1` 表示收起/折叠 |
+| `folder` | `INTEGER` | `bool` | 否 | 默认 `0`，取值 `0` 或 `1` | 是否为文件夹节点。`0` 表示普通牌组，`1` 表示文件夹 |
 | `parent_id` | `INTEGER` | `Option<i64>` | 是 | `NULL` / 外键 | 父牌组 ID。为 `NULL` 表示当前为根牌组；否则指向父牌组的 `id` |
 | `config_id` | `INTEGER` | `i64` | 否 | 引用配置 ID | 绑定的学习配置组 ID（控制每日新卡上限、复习上限、FSRS 算法参数等） |
 | `created_at` | `INTEGER` | `i64` | 否 | Unix 秒级时间戳 | 牌组的创建时间 |

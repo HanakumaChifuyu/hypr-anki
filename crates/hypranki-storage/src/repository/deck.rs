@@ -1,7 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
-use sqlx::{Pool, Sqlite};
+use sqlx::{Pool, Sqlite, SqliteConnection};
 
 use crate::db::pool::SqlitePool;
 pub use crate::models::deck::{CreateDeck, Deck, UpdateDeck};
@@ -32,21 +32,26 @@ impl DeckRepository {
 
     /// 创建一个新牌组
     pub async fn create(&self, input: &CreateDeck) -> Result<Deck> {
+        Self::create_on(&mut *self.pool().acquire().await?, input).await
+    }
+
+    /// 在调用方的连接或事务中执行，便于 service 原子地校验和写入。
+    pub async fn create_on(conn: &mut SqliteConnection, input: &CreateDeck) -> Result<Deck> {
         let now = current_timestamp();
         let deck = sqlx::query_as::<_, Deck>(
             r#"
-            INSERT INTO DECKS (name, is_collapsed, parent_id, config_id, created_at, updated_at)
+            INSERT INTO DECKS (name, folder, parent_id, config_id, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
-            RETURNING id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+            RETURNING id, name, folder, parent_id, config_id, created_at, updated_at
             "#,
         )
         .bind(&input.name)
-        .bind(input.is_collapsed)
+        .bind(input.folder)
         .bind(input.parent_id)
         .bind(input.config_id)
         .bind(now)
         .bind(now)
-        .fetch_one(self.pool())
+        .fetch_one(conn)
         .await?;
 
         Ok(deck)
@@ -61,7 +66,7 @@ impl DeckRepository {
     ) -> Result<Deck> {
         let input = CreateDeck {
             name: name.into(),
-            is_collapsed: false,
+            folder: false,
             parent_id,
             config_id,
         };
@@ -74,7 +79,7 @@ impl DeckRepository {
     pub async fn find_by_id(&self, id: i64) -> Result<Option<Deck>> {
         let deck = sqlx::query_as::<_, Deck>(
             r#"
-            SELECT id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+            SELECT id, name, folder, parent_id, config_id, created_at, updated_at
             FROM DECKS
             WHERE id = ?
             "#,
@@ -88,14 +93,19 @@ impl DeckRepository {
 
     /// 查询所有牌组（默认按 id 升序）
     pub async fn find_all(&self) -> Result<Vec<Deck>> {
+        Self::find_all_on(&mut *self.pool().acquire().await?).await
+    }
+
+    /// 在调用方的连接或事务中执行，便于 service 原子地校验和写入。
+    pub async fn find_all_on(conn: &mut SqliteConnection) -> Result<Vec<Deck>> {
         let decks = sqlx::query_as::<_, Deck>(
             r#"
-            SELECT id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+            SELECT id, name, folder, parent_id, config_id, created_at, updated_at
             FROM DECKS
             ORDER BY id ASC
             "#,
         )
-        .fetch_all(self.pool())
+        .fetch_all(conn)
         .await?;
 
         Ok(decks)
@@ -107,7 +117,7 @@ impl DeckRepository {
             Some(pid) => {
                 sqlx::query_as::<_, Deck>(
                     r#"
-                    SELECT id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+                    SELECT id, name, folder, parent_id, config_id, created_at, updated_at
                     FROM DECKS
                     WHERE parent_id = ?
                     ORDER BY id ASC
@@ -120,7 +130,7 @@ impl DeckRepository {
             None => {
                 sqlx::query_as::<_, Deck>(
                     r#"
-                    SELECT id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+                    SELECT id, name, folder, parent_id, config_id, created_at, updated_at
                     FROM DECKS
                     WHERE parent_id IS NULL
                     ORDER BY id ASC
@@ -143,7 +153,7 @@ impl DeckRepository {
     pub async fn find_by_name(&self, name: &str) -> Result<Option<Deck>> {
         let deck = sqlx::query_as::<_, Deck>(
             r#"
-            SELECT id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+            SELECT id, name, folder, parent_id, config_id, created_at, updated_at
             FROM DECKS
             WHERE name = ?
             LIMIT 1
@@ -182,24 +192,32 @@ impl DeckRepository {
 
     /// 全量更新牌组信息
     pub async fn update(&self, deck: &Deck) -> Result<bool> {
+        Ok(Self::update_on(&mut *self.pool().acquire().await?, deck)
+            .await?
+            .is_some())
+    }
+
+    /// 在调用方事务中更新，并返回数据库中的最终记录。
+    pub async fn update_on(conn: &mut SqliteConnection, deck: &Deck) -> Result<Option<Deck>> {
         let now = current_timestamp();
-        let result = sqlx::query(
+        let result = sqlx::query_as::<_, Deck>(
             r#"
             UPDATE DECKS
-            SET name = ?, is_collapsed = ?, parent_id = ?, config_id = ?, updated_at = ?
+            SET name = ?, folder = ?, parent_id = ?, config_id = ?, updated_at = ?
             WHERE id = ?
+            RETURNING id, name, folder, parent_id, config_id, created_at, updated_at
             "#,
         )
         .bind(&deck.name)
-        .bind(deck.is_collapsed)
+        .bind(deck.folder)
         .bind(deck.parent_id)
         .bind(deck.config_id)
         .bind(now)
         .bind(deck.id)
-        .execute(self.pool())
+        .fetch_optional(conn)
         .await?;
 
-        Ok(result.rows_affected() > 0)
+        Ok(result)
     }
 
     /// 修改牌组名称
@@ -221,17 +239,17 @@ impl DeckRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// 修改折叠状态
-    pub async fn update_collapsed(&self, id: i64, is_collapsed: bool) -> Result<bool> {
+    /// 修改文件夹标记
+    pub async fn update_folder(&self, id: i64, folder: bool) -> Result<bool> {
         let now = current_timestamp();
         let result = sqlx::query(
             r#"
             UPDATE DECKS
-            SET is_collapsed = ?, updated_at = ?
+            SET folder = ?, updated_at = ?
             WHERE id = ?
             "#,
         )
-        .bind(is_collapsed)
+        .bind(folder)
         .bind(now)
         .bind(id)
         .execute(self.pool())
@@ -286,7 +304,7 @@ impl DeckRepository {
         };
 
         let new_name = update.name.clone().unwrap_or(current.name);
-        let new_is_collapsed = update.is_collapsed.unwrap_or(current.is_collapsed);
+        let new_folder = update.folder.unwrap_or(current.folder);
         let new_parent_id = match update.parent_id {
             Some(pid) => pid,
             None => current.parent_id,
@@ -297,13 +315,13 @@ impl DeckRepository {
         let updated = sqlx::query_as::<_, Deck>(
             r#"
             UPDATE DECKS
-            SET name = ?, is_collapsed = ?, parent_id = ?, config_id = ?, updated_at = ?
+            SET name = ?, folder = ?, parent_id = ?, config_id = ?, updated_at = ?
             WHERE id = ?
-            RETURNING id, name, is_collapsed, parent_id, config_id, created_at, updated_at
+            RETURNING id, name, folder, parent_id, config_id, created_at, updated_at
             "#,
         )
         .bind(&new_name)
-        .bind(new_is_collapsed)
+        .bind(new_folder)
         .bind(new_parent_id)
         .bind(new_config_id)
         .bind(now)
@@ -333,6 +351,11 @@ impl DeckRepository {
 
     /// 批量删除牌组
     pub async fn delete_by_ids(&self, ids: &[i64]) -> Result<u64> {
+        Self::delete_by_ids_on(&mut *self.pool().acquire().await?, ids).await
+    }
+
+    /// 在调用方的连接或事务中执行，便于 service 原子地校验和写入。
+    pub async fn delete_by_ids_on(conn: &mut SqliteConnection, ids: &[i64]) -> Result<u64> {
         if ids.is_empty() {
             return Ok(0);
         }
@@ -344,7 +367,7 @@ impl DeckRepository {
         }
         separated.push_unseparated(")");
 
-        let result = builder.build().execute(self.pool()).await?;
+        let result = builder.build().execute(conn).await?;
         Ok(result.rows_affected())
     }
 }
@@ -377,13 +400,13 @@ mod tests {
 
         // 新建 deck
         let test_createdeck1 = CreateDeck::new("test_deck1", 1);
-        let test_createdeck2 = CreateDeck::new("test_deck2", 1);
+        let test_createdeck2 = CreateDeck::new("test_deck2", 1).with_folder(true);
         let deck1 = test_repo.create(&test_createdeck1).await?;
         let deck2 = test_repo.create(&test_createdeck2).await?;
 
         assert_eq!(deck1.name, test_createdeck1.name);
         assert_eq!(deck1.config_id, test_createdeck1.config_id);
-        assert_eq!(deck1.is_collapsed, false);
+        assert_eq!(deck1.folder, false);
         assert_eq!(deck1.parent_id, None);
 
         // 验证 count 增加
@@ -395,6 +418,7 @@ mod tests {
         let found2 = found2.unwrap();
         assert_eq!(found2.name, test_createdeck2.name);
         assert_eq!(found2.config_id, test_createdeck2.config_id);
+        assert!(found2.folder);
 
         // 测试查找不存在的 id
         let not_found = test_repo.find_by_id(9999).await?;
@@ -463,7 +487,7 @@ mod tests {
         Ok(())
     }
 
-    /// 3. 测试各类更新方法 (update, update_name, update_collapsed, update_parent, update_config)
+    /// 3. 测试各类更新方法 (update, update_name, update_folder, update_parent, update_config)
     #[tokio::test]
     async fn test_deck_updates() -> Result<()> {
         let (repo, _guard) = create_test_deck_repository().await?;
@@ -475,11 +499,11 @@ mod tests {
         let current = repo.find_by_id(deck.id).await?.unwrap();
         assert_eq!(current.name, "Renamed");
 
-        // update_collapsed
-        let updated = repo.update_collapsed(deck.id, true).await?;
+        // update_folder
+        let updated = repo.update_folder(deck.id, true).await?;
         assert!(updated);
         let current = repo.find_by_id(deck.id).await?.unwrap();
-        assert!(current.is_collapsed);
+        assert!(current.folder);
 
         // update_parent
         let parent = repo.create_simple("Parent", None, 1).await?;
@@ -496,7 +520,7 @@ mod tests {
 
         // 全量 update
         deck.name = "FullUpdate".to_string();
-        deck.is_collapsed = false;
+        deck.folder = false;
         deck.parent_id = None;
         deck.config_id = 200;
         let updated = repo.update(&deck).await?;
@@ -504,13 +528,13 @@ mod tests {
 
         let current = repo.find_by_id(deck.id).await?.unwrap();
         assert_eq!(current.name, "FullUpdate");
-        assert!(!current.is_collapsed);
+        assert!(!current.folder);
         assert_eq!(current.parent_id, None);
         assert_eq!(current.config_id, 200);
 
         // 更新不存在的 ID 应返回 false
         assert!(!repo.update_name(9999, "None").await?);
-        assert!(!repo.update_collapsed(9999, true).await?);
+        assert!(!repo.update_folder(9999, true).await?);
         assert!(!repo.update_parent(9999, None).await?);
         assert!(!repo.update_config(9999, 1).await?);
 
@@ -526,15 +550,17 @@ mod tests {
             .create(&CreateDeck::new("TestPartial", 1).with_parent(Some(parent.id)))
             .await?;
 
-        // 仅更新名称，其他属性保持原有值
+        // 更新名称与文件夹标记，其他属性保持原有值
         let partial_update = UpdateDeck {
             name: Some("PartialRenamed".to_string()),
+            folder: Some(true),
             ..Default::default()
         };
         let res = repo.update_partial(deck.id, &partial_update).await?;
         assert!(res.is_some());
         let updated = res.unwrap();
         assert_eq!(updated.name, "PartialRenamed");
+        assert!(updated.folder);
         assert_eq!(updated.parent_id, Some(parent.id));
         assert_eq!(updated.config_id, 1);
 
@@ -547,13 +573,17 @@ mod tests {
         assert!(res.is_some());
         let updated = res.unwrap();
         assert_eq!(updated.parent_id, None);
+        assert!(updated.folder);
 
         // 更新不存在的 ID 返回 None
         let not_found = repo
-            .update_partial(9999, &UpdateDeck {
-                name: Some("Ghost".to_string()),
-                ..Default::default()
-            })
+            .update_partial(
+                9999,
+                &UpdateDeck {
+                    name: Some("Ghost".to_string()),
+                    ..Default::default()
+                },
+            )
             .await?;
         assert!(not_found.is_none());
 

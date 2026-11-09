@@ -6,7 +6,8 @@ use sqlx::FromRow;
 pub struct Deck {
     pub id: i64,
     pub name: String,
-    pub is_collapsed: bool,
+    /// 是否为文件夹节点，false 表示普通牌组。
+    pub folder: bool,
     pub parent_id: Option<i64>,
     pub config_id: i64,
     pub created_at: i64,
@@ -17,7 +18,9 @@ pub struct Deck {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDeck {
     pub name: String,
-    pub is_collapsed: bool,
+    /// 是否为文件夹节点，false 表示普通牌组。
+    #[serde(default)]
+    pub folder: bool,
     pub parent_id: Option<i64>,
     pub config_id: i64,
 }
@@ -26,7 +29,7 @@ impl CreateDeck {
     pub fn new(name: impl Into<String>, config_id: i64) -> Self {
         Self {
             name: name.into(),
-            is_collapsed: false,
+            folder: false,
             parent_id: None,
             config_id,
         }
@@ -37,8 +40,8 @@ impl CreateDeck {
         self
     }
 
-    pub fn with_collapsed(mut self, is_collapsed: bool) -> Self {
-        self.is_collapsed = is_collapsed;
+    pub fn with_folder(mut self, folder: bool) -> Self {
+        self.folder = folder;
         self
     }
 }
@@ -47,7 +50,7 @@ impl CreateDeck {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateDeck {
     pub name: Option<String>,
-    pub is_collapsed: Option<bool>,
+    pub folder: Option<bool>,
     /// None 表示不修改；Some(None) 表示设置为 NULL；Some(Some(id)) 表示更新为新的父 ID
     pub parent_id: Option<Option<i64>>,
     pub config_id: Option<i64>,
