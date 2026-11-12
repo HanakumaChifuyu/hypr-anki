@@ -39,6 +39,9 @@ impl AppPath {
         if !self.data_dir.exists() {
             fs::create_dir_all(&self.data_dir)?;
         }
+        if !self.cache_dir.join("log").exists() {
+            fs::create_dir_all(self.cache_dir.join("log"))?;
+        }
         Ok(())
     }
 
@@ -58,4 +61,3 @@ impl AppPath {
         self.data_dir.join("app.db")
     }
 }
-

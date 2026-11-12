@@ -12,5 +12,9 @@ tempfile = "3.27.0"
 tokio = { version = "1.53.2", features = ["full"] }
 hypranki-storage.workspace = true
 
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-appender = "0.2.5"
+
 [lints]
 workspace = true
