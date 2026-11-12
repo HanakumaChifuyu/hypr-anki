@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::handlers::AppHandler;
 use crate::infra::InfraState;
@@ -25,6 +25,14 @@ pub struct AppState {
 impl AppState {
     pub async fn new(custom_project: Option<PathBuf>) -> Result<Self> {
         let infra_state = InfraState::new(custom_project).await?;
+        infra_state
+            .sqlite_pool()
+            .initialize_database()
+            .await
+            .context("初始化数据库失败")
+            .inspect_err(
+                |error| tracing::error!(error = %format!("{error:#}"), "应用初始化失败"),
+            )?;
         Ok(Self { infra_state })
     }
 
