@@ -1,4 +1,5 @@
 target/
+/.hypranki/
 output/
 node_modules/
 crates/gui/ui/dist/

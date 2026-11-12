@@ -3,11 +3,18 @@ use hypranki_storage::repository::deck::DeckRepository;
 
 use crate::app::FromRef;
 
-#[derive(Debug)]
-pub struct RepoState {
+#[derive(Debug, Clone)]
+pub struct Repositories {
     deck_repo: DeckRepository,
 }
-impl RepoState {
+
+impl FromRef<Repositories> for DeckRepository {
+    fn from_ref(input: &Repositories) -> Self {
+        input.deck_repo.clone()
+    }
+}
+
+impl Repositories {
     pub fn new<I>(infra_state: &I) -> Self
     where
         SqlitePool: FromRef<I>,

@@ -11,7 +11,10 @@ serde_json = "1.0.151"
 tempfile = "3.27.0"
 tokio = { version = "1.53.2", features = ["full"] }
 hypranki-storage.workspace = true
-
+hypranki-service.workspace = true
+axum = { version = "0.8.9", features = ["macros"] }
+sqlx = "0.9.0"
+thiserror = "2.0.21"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2.5"

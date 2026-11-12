@@ -1,16 +1,17 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use anyhow::{Result, anyhow, ensure};
+use anyhow::{Context, Result, anyhow, ensure};
 use hypranki_storage::models::deck::{CreateDeck, Deck, UpdateDeck};
 use hypranki_storage::repository::deck::DeckRepository;
 
 #[derive(Debug, Clone)]
 pub struct DeckService {
-    deck_repo: DeckRepository,
+    deck_repo: Arc<DeckRepository>,
 }
 
 impl DeckService {
-    pub fn new(deck_repo: DeckRepository) -> Self {
+    pub fn new(deck_repo: Arc<DeckRepository>) -> Self {
         Self { deck_repo }
     }
 
@@ -23,7 +24,8 @@ impl DeckService {
     pub async fn get(&self, id: i64) -> Result<Deck> {
         self.deck_repo
             .find_by_id(id)
-            .await?
+            .await
+            .context(format!("查询牌组 {} 的时候发生数据库错误", id))?
             .ok_or_else(|| anyhow!("牌组 {} 不存在", id))
     }
 
@@ -179,6 +181,8 @@ impl DeckService {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use anyhow::Result;
     use hypranki_storage::db::pool::SqlitePool;
     use hypranki_storage::models::deck::Deck;
@@ -192,7 +196,7 @@ mod tests {
         let pool = SqlitePool::new(dir.path().join("decks.db")).await?;
         pool.migrate(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../migrations"))
             .await?;
-        Ok((DeckService::new(DeckRepository::new(pool)), dir))
+        Ok((DeckService::new(Arc::new(DeckRepository::new(pool))), dir))
     }
 
     #[tokio::test]

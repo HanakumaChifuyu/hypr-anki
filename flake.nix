@@ -76,6 +76,7 @@
                 export LD_LIBRARY_PATH="${lib.makeLibraryPath linuxLibraries}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               ''
               + ''
+                export HYPRANKI_PROJECT_DIR="''${HYPRANKI_PROJECT_DIR:-$PWD/.hypranki}"
                 # Use fish for interactive sessions; keep nix develop -c working.
                 case $- in
                   *i*)
