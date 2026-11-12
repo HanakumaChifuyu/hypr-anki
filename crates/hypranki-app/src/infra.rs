@@ -6,6 +6,7 @@ use crate::app::FromRef;
 
 use self::app_logger::AppLogger;
 use self::app_path::AppPath;
+pub mod app_config;
 pub mod app_logger;
 pub mod app_path;
 
@@ -104,9 +105,9 @@ mod tests {
             let path = entry?.path();
             // daily appender 会在文件名后追加日期。
             if path.is_file()
-                && path.file_name().is_some_and(|name| {
-                    name.to_string_lossy().starts_with("hypr_anki.log.")
-                })
+                && path
+                    .file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with("hypr_anki.log."))
                 && read_to_string(path)?.contains(&message)
             {
                 message_found = true;

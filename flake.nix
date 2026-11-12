@@ -58,6 +58,7 @@
               rustfmt
               rust-analyzer
               cargo-generate
+              cargo-expand
               sqlx-cli
               prettier
               nodejs_24
@@ -76,15 +77,22 @@
                 export LD_LIBRARY_PATH="${lib.makeLibraryPath linuxLibraries}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               ''
               + ''
+                export RUST_BACKTRACE=1
+                # Keep development data local; allow an explicit override.
                 export HYPRANKI_PROJECT_DIR="''${HYPRANKI_PROJECT_DIR:-$PWD/.hypranki}"
-                # Use fish for interactive sessions; keep nix develop -c working.
-                case $- in
-                  *i*)
-                    export SHELL="${pkgs.fish}/bin/fish"
-                    exec "$SHELL"
-                    ;;
-                esac
-              '';
+
+              ''
+              +
+
+                ''
+                  # Use fish for interactive sessions; keep nix develop -c working.
+                  case $- in
+                    *i*)
+                      export SHELL="${pkgs.fish}/bin/fish"
+                      exec "$SHELL"
+                      ;;
+                  esac
+                '';
           };
         };
     };

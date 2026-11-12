@@ -20,7 +20,7 @@ pub struct DeckRepository {
 
 impl DeckRepository {
     pub fn new(pool: SqlitePool) -> Self {
-        Self { pool: pool.clone() }
+        Self { pool: pool }
     }
 
     /// 获取底层数据库连接池
