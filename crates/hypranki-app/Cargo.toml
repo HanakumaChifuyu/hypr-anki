@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+utoipa = "6"
+utoipa-scalar = { version = "0.4", features = ["axum"] }
 anyhow = "1.0.104"
 directories = "6.0.0"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -21,3 +23,6 @@ tracing-appender = "0.2.5"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

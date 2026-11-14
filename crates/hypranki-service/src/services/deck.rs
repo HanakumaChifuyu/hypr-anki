@@ -5,6 +5,10 @@ use anyhow::{Context, Result, anyhow, ensure};
 use hypranki_storage::models::deck::{CreateDeck, Deck, UpdateDeck};
 use hypranki_storage::repository::deck::DeckRepository;
 
+#[derive(Debug, thiserror::Error)]
+#[error("牌组 {0} 不存在")]
+pub struct DeckNotFound(pub i64);
+
 #[derive(Debug, Clone)]
 pub struct DeckService {
     deck_repo: Arc<DeckRepository>,
@@ -27,7 +31,7 @@ impl DeckService {
             .find_by_id(id)
             .await
             .context(format!("查询牌组 {} 的时候发生数据库错误", id))?
-            .ok_or_else(|| anyhow!("牌组 {} 不存在", id))
+            .ok_or_else(|| anyhow::Error::new(DeckNotFound(id)))
     }
 
     /// 校验和写入共用 SQLite 写事务，避免并发修改使校验失效。
@@ -57,7 +61,7 @@ impl DeckService {
         let deck = decks
             .iter_mut()
             .find(|deck| deck.id == id)
-            .ok_or_else(|| anyhow!("牌组 {} 不存在", id))?;
+            .ok_or_else(|| anyhow::Error::new(DeckNotFound(id)))?;
         if let Some(name) = &input.name {
             ensure!(!name.trim().is_empty(), "牌组名称不能为空");
             deck.name = name.clone();
@@ -75,7 +79,7 @@ impl DeckService {
         Self::preorder_indices(&decks)?;
         let saved = DeckRepository::update_on(&mut tx, &updated)
             .await?
-            .ok_or_else(|| anyhow!("牌组 {} 不存在", id))?;
+            .ok_or_else(|| anyhow::Error::new(DeckNotFound(id)))?;
         tx.commit().await?;
         Ok(saved)
     }
@@ -108,7 +112,9 @@ impl DeckService {
         let mut tx = self.deck_repo.pool().begin_with("BEGIN IMMEDIATE").await?;
         let decks = DeckRepository::find_all_on(&mut tx).await?;
         let preorder = Self::preorder_indices(&decks)?;
-        ensure!(decks.iter().any(|deck| deck.id == id), "牌组 {} 不存在", id);
+        if !decks.iter().any(|deck| deck.id == id) {
+            return Err(DeckNotFound(id).into());
+        }
         let mut selected = std::collections::HashSet::from([id]);
         let mut deleted = Vec::new();
         for index in preorder {
@@ -339,7 +345,9 @@ mod tests {
         let mut decks = decks_with_parents(&[None, Some(1)]);
         decks[0].folder = false;
         assert_eq!(
-            DeckService::preorder_indices(&decks).unwrap_err().to_string(),
+            DeckService::preorder_indices(&decks)
+                .unwrap_err()
+                .to_string(),
             "父节点 1 不是文件夹"
         );
     }
@@ -398,7 +406,10 @@ mod tests {
     fn test_topreorder() {
         let decks = mock_deck_table();
         let preorder_decks = DeckService::preorder_indices(&decks).unwrap();
-        let idx: Vec<_> = preorder_decks.iter().map(|&index| decks[index].id).collect();
+        let idx: Vec<_> = preorder_decks
+            .iter()
+            .map(|&index| decks[index].id)
+            .collect();
         assert_eq!(idx, EXPECTED_PREORDER_IDS);
     }
 
