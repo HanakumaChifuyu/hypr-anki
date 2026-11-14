@@ -17,8 +17,9 @@ impl DeckService {
 
     /// 从数据库获取完整树快照，按先序排列；前端用 parent_id 组装树。
     pub async fn list(&self) -> Result<Vec<Deck>> {
-        let decks = self.deck_repo.find_all().await?;
-        Ok(Self::to_preorder(&decks)?.into_iter().cloned().collect())
+        let mut decks = self.deck_repo.find_all().await?;
+        Self::sort_preorder(&mut decks)?;
+        Ok(decks)
     }
 
     pub async fn get(&self, id: i64) -> Result<Deck> {
@@ -33,7 +34,7 @@ impl DeckService {
     pub async fn create(&self, input: &CreateDeck) -> Result<Deck> {
         let mut tx = self.deck_repo.pool().begin_with("BEGIN IMMEDIATE").await?;
         let decks = DeckRepository::find_all_on(&mut tx).await?;
-        Self::to_preorder(&decks)?;
+        Self::preorder_indices(&decks)?;
         ensure!(!input.name.trim().is_empty(), "牌组名称不能为空");
         if let Some(parent_id) = input.parent_id {
             let parent = decks
@@ -52,7 +53,7 @@ impl DeckService {
     pub async fn update(&self, id: i64, input: &UpdateDeck) -> Result<Deck> {
         let mut tx = self.deck_repo.pool().begin_with("BEGIN IMMEDIATE").await?;
         let mut decks = DeckRepository::find_all_on(&mut tx).await?;
-        Self::to_preorder(&decks)?;
+        Self::preorder_indices(&decks)?;
         let deck = decks
             .iter_mut()
             .find(|deck| deck.id == id)
@@ -71,7 +72,7 @@ impl DeckService {
             deck.config_id = config_id;
         }
         let updated = deck.clone();
-        Self::to_preorder(&decks)?;
+        Self::preorder_indices(&decks)?;
         let saved = DeckRepository::update_on(&mut tx, &updated)
             .await?
             .ok_or_else(|| anyhow!("牌组 {} 不存在", id))?;
@@ -106,11 +107,12 @@ impl DeckService {
     pub async fn delete_subtree(&self, id: i64) -> Result<Vec<i64>> {
         let mut tx = self.deck_repo.pool().begin_with("BEGIN IMMEDIATE").await?;
         let decks = DeckRepository::find_all_on(&mut tx).await?;
-        let preorder = Self::to_preorder(&decks)?;
+        let preorder = Self::preorder_indices(&decks)?;
         ensure!(decks.iter().any(|deck| deck.id == id), "牌组 {} 不存在", id);
         let mut selected = std::collections::HashSet::from([id]);
         let mut deleted = Vec::new();
-        for deck in preorder {
+        for index in preorder {
+            let deck = &decks[index];
             if deck.id == id
                 || deck
                     .parent_id
@@ -128,10 +130,10 @@ impl DeckService {
         Ok(deleted)
     }
 
-    /// 完整先序序列；同级按 ID 升序。空输入返回空序列。
+    /// 校验树并返回先序排列的原始下标；同级按 ID 升序。
     ///
     /// ID 重复、父节点不存在、父节点不是文件夹或父子关系存在环时返回错误。
-    pub fn to_preorder(decks: &[Deck]) -> Result<Vec<&Deck>> {
+    fn preorder_indices(decks: &[Deck]) -> Result<Vec<usize>> {
         let mut by_id = HashMap::with_capacity(decks.len());
         for deck in decks {
             ensure!(
@@ -152,23 +154,23 @@ impl DeckService {
             }
         }
 
-        let mut children: HashMap<Option<i64>, Vec<&Deck>> = HashMap::new();
-        for deck in decks {
-            children.entry(deck.parent_id).or_default().push(deck);
+        let mut children: HashMap<Option<i64>, Vec<usize>> = HashMap::new();
+        for (index, deck) in decks.iter().enumerate() {
+            children.entry(deck.parent_id).or_default().push(index);
         }
         for siblings in children.values_mut() {
-            siblings.sort_unstable_by_key(|deck| deck.id);
+            siblings.sort_unstable_by_key(|&index| decks[index].id);
         }
         // 使用显式栈，避免很深的树耗尽调用栈。
         // ID 唯一且每个节点只有一个父节点，从根节点出发不会进入环。
-        let mut stack: Vec<&Deck> = children
+        let mut stack: Vec<usize> = children
             .get(&None)
             .map(|roots| roots.iter().rev().copied().collect())
             .unwrap_or_default();
         let mut result = Vec::with_capacity(decks.len());
-        while let Some(deck) = stack.pop() {
-            result.push(deck);
-            if let Some(nodes) = children.get(&Some(deck.id)) {
+        while let Some(index) = stack.pop() {
+            result.push(index);
+            if let Some(nodes) = children.get(&Some(decks[index].id)) {
                 stack.extend(nodes.iter().rev().copied());
             }
         }
@@ -176,6 +178,24 @@ impl DeckService {
         // 包括自环、没有根节点的环，以及与正常树并存的独立环。
         ensure!(result.len() == decks.len(), "牌组父子关系存在环");
         Ok(result)
+    }
+
+    /// 校验成功后原地重排，不克隆 Deck；失败时保持输入不变。
+    fn sort_preorder(decks: &mut [Deck]) -> Result<()> {
+        let indices = Self::preorder_indices(decks)?;
+        // destination[position] 表示当前位置的元素应该移到哪个位置。
+        let mut destination = vec![0; indices.len()];
+        for (target, original) in indices.into_iter().enumerate() {
+            destination[original] = target;
+        }
+        for position in 0..decks.len() {
+            while destination[position] != position {
+                let target = destination[position];
+                decks.swap(position, target);
+                destination.swap(position, target);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -319,7 +339,7 @@ mod tests {
         let mut decks = decks_with_parents(&[None, Some(1)]);
         decks[0].folder = false;
         assert_eq!(
-            DeckService::to_preorder(&decks).unwrap_err().to_string(),
+            DeckService::preorder_indices(&decks).unwrap_err().to_string(),
             "父节点 1 不是文件夹"
         );
     }
@@ -377,9 +397,33 @@ mod tests {
     #[test]
     fn test_topreorder() {
         let decks = mock_deck_table();
-        let preorder_decks = DeckService::to_preorder(&decks).unwrap();
-        let idx: Vec<_> = preorder_decks.iter().map(|&deck| deck.id).collect();
+        let preorder_decks = DeckService::preorder_indices(&decks).unwrap();
+        let idx: Vec<_> = preorder_decks.iter().map(|&index| decks[index].id).collect();
         assert_eq!(idx, EXPECTED_PREORDER_IDS);
+    }
+
+    #[test]
+    fn sort_preorder_preserves_records_and_is_idempotent() {
+        let mut decks = mock_deck_table();
+        let original = decks.clone();
+        DeckService::sort_preorder(&mut decks).unwrap();
+        let ids: Vec<_> = decks.iter().map(|deck| deck.id).collect();
+        assert_eq!(ids, EXPECTED_PREORDER_IDS);
+        for deck in &decks {
+            assert_eq!(Some(deck), original.iter().find(|item| item.id == deck.id));
+        }
+        let sorted = decks.clone();
+        DeckService::sort_preorder(&mut decks).unwrap();
+        assert_eq!(decks, sorted);
+        DeckService::sort_preorder(&mut []).unwrap();
+    }
+
+    #[test]
+    fn sort_preorder_leaves_invalid_input_unchanged() {
+        let mut decks = decks_with_parents(&[None, Some(3), Some(2)]);
+        let original = decks.clone();
+        assert!(DeckService::sort_preorder(&mut decks).is_err());
+        assert_eq!(decks, original);
     }
 
     fn decks_with_parents(parents: &[Option<i64>]) -> Vec<Deck> {
@@ -398,13 +442,13 @@ mod tests {
 
     #[test]
     fn preorder_accepts_empty_input() {
-        assert!(DeckService::to_preorder(&[]).unwrap().is_empty());
+        assert!(DeckService::preorder_indices(&[]).unwrap().is_empty());
     }
 
     #[test]
     fn preorder_rejects_missing_parent() {
         let decks = decks_with_parents(&[None, Some(99)]);
-        let error = DeckService::to_preorder(&decks).unwrap_err();
+        let error = DeckService::preorder_indices(&decks).unwrap_err();
         assert_eq!(error.to_string(), "牌组 2 的父节点 99 不存在");
     }
 
@@ -412,7 +456,7 @@ mod tests {
     fn preorder_rejects_duplicate_ids() {
         let mut decks = decks_with_parents(&[None, None]);
         decks[1].id = decks[0].id;
-        let error = DeckService::to_preorder(&decks).unwrap_err();
+        let error = DeckService::preorder_indices(&decks).unwrap_err();
         assert_eq!(error.to_string(), "牌组 ID 重复：1");
     }
 
@@ -424,7 +468,7 @@ mod tests {
             vec![None, Some(3), Some(2), Some(3)],
         ] {
             let decks = decks_with_parents(&parents);
-            let error = DeckService::to_preorder(&decks).unwrap_err();
+            let error = DeckService::preorder_indices(&decks).unwrap_err();
             assert_eq!(error.to_string(), "牌组父子关系存在环");
         }
     }
@@ -434,8 +478,8 @@ mod tests {
         let mut parents = vec![None];
         parents.extend((1..10_000).map(Some));
         let decks = decks_with_parents(&parents);
-        let preorder = DeckService::to_preorder(&decks).unwrap();
-        let ids: Vec<_> = preorder.iter().map(|deck| deck.id).collect();
+        let preorder = DeckService::preorder_indices(&decks).unwrap();
+        let ids: Vec<_> = preorder.iter().map(|&index| decks[index].id).collect();
         assert_eq!(ids, (1..=10_000).collect::<Vec<_>>());
     }
 }
