@@ -78,8 +78,6 @@
               ''
               + ''
                 export RUST_BACKTRACE=1
-                # Keep development data local; allow an explicit override.
-                export HYPRANKI_PROJECT_DIR="''${HYPRANKI_PROJECT_DIR:-$PWD/.hypranki}"
 
               ''
               +

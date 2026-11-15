@@ -6,21 +6,21 @@ use directories::ProjectDirs;
 
 #[derive(Debug, Clone)]
 pub struct AppPath {
-    config_dir: PathBuf,
-    cache_dir: PathBuf,
-    data_dir: PathBuf,
+    pub config_dir: PathBuf,
+    pub cache_dir: PathBuf,
+    pub data_dir: PathBuf,
 }
 
 impl AppPath {
-    pub fn new(custom_project: Option<PathBuf>) -> Result<Self> {
+    pub fn new(custom_project: Option<&Path>) -> Result<Self> {
         let project_dir = ProjectDirs::from("", "", "hypranki").expect("无法识别操作系统的主目录");
 
-        let data_dir = custom_project.unwrap_or_else(|| project_dir.data_dir().to_path_buf());
+        let data_dir = custom_project.unwrap_or_else(|| project_dir.data_dir());
 
         let app_path = Self {
             config_dir: project_dir.config_dir().to_path_buf(),
             cache_dir: project_dir.cache_dir().to_path_buf(),
-            data_dir,
+            data_dir: data_dir.to_path_buf(),
         };
 
         app_path.ensure_dirs()?;

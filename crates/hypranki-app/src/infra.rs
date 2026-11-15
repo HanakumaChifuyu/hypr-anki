@@ -1,9 +1,10 @@
 use anyhow::Result;
 use hypranki_storage::db::pool::SqlitePool;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::app::FromRef;
 
+use self::app_config::AppOptions;
 use self::app_logger::AppLogger;
 use self::app_path::AppPath;
 pub mod app_config;
@@ -15,6 +16,7 @@ pub struct InfraState {
     app_path: AppPath,
     sqlite_pool: SqlitePool,
     app_logger: AppLogger,
+    app_options: AppOptions,
 }
 
 impl FromRef<InfraState> for AppPath {
@@ -30,15 +32,20 @@ impl FromRef<InfraState> for SqlitePool {
 }
 
 impl InfraState {
-    pub async fn new(custom_project: Option<PathBuf>) -> Result<Self> {
+    pub async fn new(
+        custom_project: Option<&Path>,
+        custom_config_file: Option<&Path>,
+    ) -> Result<Self> {
         let app_path = AppPath::new(custom_project)?;
         let sqlite_pool = SqlitePool::new(app_path.db_path()).await?;
         let app_logger = AppLogger::new(app_path.cache_dir().join("log"), "hypr_anki.log", None);
+        let app_options = AppOptions::load(custom_config_file, &app_path);
 
         Ok(Self {
             app_path,
             sqlite_pool,
             app_logger,
+            app_options,
         })
     }
 
@@ -70,8 +77,17 @@ mod tests {
 
         assert!(!custom_project.exists());
 
-        // 初始化整个 infra 模块
-        let infra = InfraState::new(Some(custom_project.clone())).await?;
+        let config_file = temp.path().join("config.toml");
+        std::fs::write(
+            &config_file,
+            "listen_addr = '127.0.0.1:4000'\nlog_filter = 'warn'\ndocs_enabled = false",
+        )?;
+
+        // 初始化整个 infra 模块，显式指定配置文件，避免读取本机配置。
+        let infra = InfraState::new(Some(&custom_project), Some(&config_file)).await?;
+        assert_eq!(infra.app_options.listen_addr.to_string(), "127.0.0.1:4000");
+        assert_eq!(infra.app_options.log_filter, "warn");
+        assert!(!infra.app_options.docs_enabled);
 
         // 验证自定义应用数据目录已成功创建
         assert!(custom_project.exists());

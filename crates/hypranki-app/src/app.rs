@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
@@ -23,8 +23,11 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(custom_project: Option<PathBuf>) -> Result<Self> {
-        let infra_state = InfraState::new(custom_project).await?;
+    pub async fn new(
+        custom_project: Option<&Path>,
+        custom_config_file: Option<&Path>,
+    ) -> Result<Self> {
+        let infra_state = InfraState::new(custom_project, custom_config_file).await?;
         infra_state
             .sqlite_pool()
             .initialize_database()
