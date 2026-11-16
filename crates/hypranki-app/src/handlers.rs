@@ -55,9 +55,7 @@ mod tests {
     async fn serves_scalar_and_complete_openapi() {
         let dir = tempfile::tempdir().unwrap();
         let pool = SqlitePool::new(dir.path().join("docs.db")).await.unwrap();
-        let router = AppHandler::router(ServiceState {
-            deck_service: Arc::new(DeckService::new(Arc::new(DeckRepository::new(pool)))),
-        });
+        let router = AppHandler::router(ServiceState::from_pool(pool));
         let response = router
             .clone()
             .oneshot(

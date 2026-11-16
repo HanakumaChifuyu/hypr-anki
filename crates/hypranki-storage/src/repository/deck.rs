@@ -370,6 +370,21 @@ impl DeckRepository {
         let result = builder.build().execute(conn).await?;
         Ok(result.rows_affected())
     }
+
+    pub async fn find_by_id_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<Option<Deck>> {
+        let deck = sqlx::query_as::<_, Deck>(
+            r#"
+            SELECT id, name, folder, parent_id, config_id, created_at, updated_at
+            FROM DECKS
+            WHERE id = ?
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await?;
+
+        Ok(deck)
+    }
 }
 
 #[cfg(test)]

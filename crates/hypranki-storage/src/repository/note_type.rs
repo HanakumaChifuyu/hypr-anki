@@ -29,33 +29,31 @@ impl NoteTypeRepository {
     }
 
     pub async fn find_by_id(&self, id: i64) -> Result<Option<NoteType>> {
-        Ok(sqlx::query_as::<_, NoteType>(
-            "SELECT id, name, fields FROM NOTETYPES WHERE id = ?",
+        Ok(
+            sqlx::query_as::<_, NoteType>("SELECT id, name, fields FROM NOTETYPES WHERE id = ?")
+                .bind(id)
+                .fetch_optional(self.pool())
+                .await?,
         )
-        .bind(id)
-        .fetch_optional(self.pool())
-        .await?)
     }
 
     /// 按 ID 升序返回所有记录。
     pub async fn find_all(&self) -> Result<Vec<NoteType>> {
-        Ok(sqlx::query_as::<_, NoteType>(
-            "SELECT id, name, fields FROM NOTETYPES ORDER BY id ASC",
+        Ok(
+            sqlx::query_as::<_, NoteType>("SELECT id, name, fields FROM NOTETYPES ORDER BY id ASC")
+                .fetch_all(self.pool())
+                .await?,
         )
-        .fetch_all(self.pool())
-        .await?)
     }
 
     /// 全量更新；记录不存在时返回 false。
     pub async fn update(&self, input: &NoteType) -> Result<bool> {
-        let result = sqlx::query(
-            "UPDATE NOTETYPES SET name = ?, fields = ? WHERE id = ?",
-        )
-        .bind(&input.name)
-        .bind(sqlx::types::Json(&input.fields))
-        .bind(input.id)
-        .execute(self.pool())
-        .await?;
+        let result = sqlx::query("UPDATE NOTETYPES SET name = ?, fields = ? WHERE id = ?")
+            .bind(&input.name)
+            .bind(sqlx::types::Json(&input.fields))
+            .bind(input.id)
+            .execute(self.pool())
+            .await?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -66,5 +64,17 @@ impl NoteTypeRepository {
             .execute(self.pool())
             .await?;
         Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn find_by_id_on(
+        conn: &mut sqlx::SqliteConnection,
+        id: i64,
+    ) -> Result<Option<NoteType>> {
+        Ok(
+            sqlx::query_as::<_, NoteType>("SELECT id, name, fields FROM NOTETYPES WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&mut *conn)
+                .await?,
+        )
     }
 }

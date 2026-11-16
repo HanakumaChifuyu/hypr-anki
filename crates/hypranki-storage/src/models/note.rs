@@ -53,6 +53,11 @@ pub struct CreateNote {
 
 #[derive(Debug, Error)]
 pub enum FieldValidError {
+    #[error("笔记内容必须是 JSON 对象")]
+    ContentNotObject,
+
+    #[error("笔记包含未定义的字段: {name}")]
+    UnknownField { name: String },
     #[error("找不到匹配的笔记类型: {{id: {id}, name:{name}}}")]
     NoteTypeMiss { id: i64, name: String },
 
@@ -76,6 +81,16 @@ impl Note {
                 id: note_type.id,
                 name: note_type.name,
             });
+        }
+
+        let object = self
+            .content
+            .as_object()
+            .ok_or(FieldValidError::ContentNotObject)?;
+        for key in object.keys() {
+            if !note_type.fields.iter().any(|field| &field.name == key) {
+                bail!(FieldValidError::UnknownField { name: key.clone() });
+            }
         }
 
         let missing_fields: Vec<_> = note_type
@@ -211,6 +226,30 @@ mod tests {
         };
         assert_eq!(*count, 2);
         assert_eq!(missed_field_list, " - Data\n - Audio");
+    }
+
+    #[test]
+    fn validate_rejects_undefined_fields() {
+        let mut note = note();
+        note.content["Extra"] = json!("unexpected");
+        let error = note.validate(note_type()).unwrap_err();
+        assert!(matches!(error.downcast_ref::<FieldValidError>(),
+            Some(FieldValidError::UnknownField { name }) if name == "Extra"));
+    }
+
+    #[test]
+    fn validate_rejects_non_object_even_with_no_fields() {
+        for content in [Value::Null, json!([]), json!("text"), json!(42)] {
+            let mut note = note();
+            note.content = content;
+            let mut note_type = note_type();
+            note_type.fields.clear();
+            let error = note.validate(note_type).unwrap_err();
+            assert!(matches!(
+                error.downcast_ref::<FieldValidError>(),
+                Some(FieldValidError::ContentNotObject)
+            ));
+        }
     }
 
     #[test]

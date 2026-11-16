@@ -163,6 +163,81 @@ impl CardRepository {
             .await?;
         Ok(result.rows_affected() > 0)
     }
+
+    pub async fn create_on(conn: &mut sqlx::SqliteConnection, input: &CreateCard) -> Result<Card> {
+        let now = current_timestamp();
+        Ok(sqlx::query_as::<_, Card>(
+            "INSERT INTO CARDS (note_id, template_id, deck_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?) RETURNING *",
+        )
+        .bind(input.note_id)
+        .bind(input.template_id)
+        .bind(input.deck_id)
+        .bind(now)
+        .bind(now)
+        .fetch_one(&mut *conn)
+        .await?)
+    }
+
+    pub async fn find_by_id_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<Option<Card>> {
+        Ok(
+            sqlx::query_as::<_, Card>("SELECT * FROM CARDS WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&mut *conn)
+                .await?,
+        )
+    }
+
+    pub async fn update_on(conn: &mut sqlx::SqliteConnection, input: &Card) -> Result<bool> {
+        let result = sqlx::query(
+            "UPDATE CARDS SET note_id = ?, template_id = ?, deck_id = ?, memory_state = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(input.note_id)
+        .bind(input.template_id)
+        .bind(input.deck_id)
+        .bind(input.memory_state.map(sqlx::types::Json))
+        .bind(current_timestamp())
+        .bind(input.id)
+        .execute(&mut *conn)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_deck_on(
+        conn: &mut sqlx::SqliteConnection,
+        id: i64,
+        deck_id: i64,
+    ) -> Result<bool> {
+        let result = sqlx::query("UPDATE CARDS SET deck_id = ?, updated_at = ? WHERE id = ?")
+            .bind(deck_id)
+            .bind(current_timestamp())
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_template_on(
+        conn: &mut sqlx::SqliteConnection,
+        id: i64,
+        template_id: i64,
+    ) -> Result<bool> {
+        let result = sqlx::query("UPDATE CARDS SET template_id = ?, updated_at = ? WHERE id = ?")
+            .bind(template_id)
+            .bind(current_timestamp())
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn delete_by_id_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<bool> {
+        let result = sqlx::query("DELETE FROM CARDS WHERE id = ?")
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
 }
 
 #[cfg(test)]
@@ -310,5 +385,69 @@ mod tests {
         assert_eq!(repo.find_by_id(a.id).await?, Some(a));
         assert_eq!(repo.count().await?, 2);
         Ok(())
+    }
+}
+
+/// 复习历史保留算法版本、权重和前后状态，供重算与训练使用。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct CardReview {
+    pub id: i64,
+    pub card_id: i64,
+    pub reviewed_at: i64,
+    pub rating: i64,
+    pub elapsed_seconds: i64,
+    pub scheduled_seconds: i64,
+    #[sqlx(json(nullable))]
+    pub memory_before: Option<StoredMemoryState>,
+    #[sqlx(json)]
+    pub memory_after: StoredMemoryState,
+    pub algorithm: String,
+    #[sqlx(json)]
+    pub parameters: Vec<f32>,
+    pub desired_retention: f32,
+}
+
+impl CardRepository {
+    /// 仅返回已经安排复习且到期的卡片，新卡不在此队列。
+    pub async fn find_due(&self, timestamp: i64, limit: u32) -> Result<Vec<Card>> {
+        Ok(sqlx::query_as(
+            "SELECT * FROM CARDS WHERE due_at <= ? ORDER BY due_at ASC, id ASC LIMIT ?",
+        )
+        .bind(timestamp)
+        .bind(limit)
+        .fetch_all(self.pool())
+        .await?)
+    }
+
+    pub async fn save_review_on(
+        conn: &mut sqlx::SqliteConnection,
+        review: &CardReview,
+    ) -> Result<Card> {
+        sqlx::query("INSERT INTO CARD_REVIEWS (card_id, reviewed_at, rating, elapsed_seconds, scheduled_seconds, memory_before, memory_after, algorithm, parameters, desired_retention) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(review.card_id).bind(review.reviewed_at).bind(review.rating)
+            .bind(review.elapsed_seconds).bind(review.scheduled_seconds)
+            .bind(review.memory_before.map(sqlx::types::Json))
+            .bind(sqlx::types::Json(review.memory_after)).bind(&review.algorithm)
+            .bind(sqlx::types::Json(&review.parameters)).bind(review.desired_retention)
+            .execute(&mut *conn).await?;
+        Ok(sqlx::query_as("UPDATE CARDS SET memory_state = ?, last_reviewed_at = ?, due_at = ?, updated_at = ? WHERE id = ? RETURNING *")
+            .bind(sqlx::types::Json(review.memory_after)).bind(review.reviewed_at)
+            .bind(review.reviewed_at.checked_add(review.scheduled_seconds).ok_or_else(|| anyhow::anyhow!("复习时间溢出"))?)
+            .bind(review.reviewed_at).bind(review.card_id).fetch_one(conn).await?)
+    }
+
+    pub async fn reset_memory_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<()> {
+        sqlx::query("UPDATE CARDS SET memory_state = NULL, last_reviewed_at = NULL, due_at = NULL, updated_at = ? WHERE id = ?")
+            .bind(current_timestamp()).bind(id).execute(conn).await?;
+        Ok(())
+    }
+
+    pub async fn review_history(&self, id: i64) -> Result<Vec<CardReview>> {
+        Ok(
+            sqlx::query_as("SELECT * FROM CARD_REVIEWS WHERE card_id = ? ORDER BY id ASC")
+                .bind(id)
+                .fetch_all(self.pool())
+                .await?,
+        )
     }
 }

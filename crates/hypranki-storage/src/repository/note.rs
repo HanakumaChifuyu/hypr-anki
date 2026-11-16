@@ -74,6 +74,43 @@ impl NoteRepository {
         .fetch_all(self.pool())
         .await?)
     }
+
+    pub async fn create_on(conn: &mut sqlx::SqliteConnection, input: &CreateNote) -> Result<Note> {
+        Ok(sqlx::query_as::<_, Note>(
+            "INSERT INTO NOTES (note_type, content) VALUES (?, ?) RETURNING id, note_type, content",
+        )
+        .bind(input.note_type)
+        .bind(sqlx::types::Json(&input.content))
+        .fetch_one(&mut *conn)
+        .await?)
+    }
+
+    pub async fn find_by_id_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<Option<Note>> {
+        Ok(
+            sqlx::query_as::<_, Note>("SELECT id, note_type, content FROM NOTES WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&mut *conn)
+                .await?,
+        )
+    }
+
+    pub async fn update_on(conn: &mut sqlx::SqliteConnection, input: &Note) -> Result<bool> {
+        let result = sqlx::query("UPDATE NOTES SET note_type = ?, content = ? WHERE id = ?")
+            .bind(input.note_type)
+            .bind(sqlx::types::Json(&input.content))
+            .bind(input.id)
+            .execute(&mut *conn)
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn delete_by_id_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<bool> {
+        let result = sqlx::query("DELETE FROM NOTES WHERE id = ?")
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
 }
 
 #[cfg(test)]

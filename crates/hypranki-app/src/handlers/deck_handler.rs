@@ -262,11 +262,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let pool = SqlitePool::new(dir.path().join("test.db")).await.unwrap();
         pool.initialize_database().await.unwrap();
-        let state = ServiceState {
-            deck_service: Arc::new(DeckService::new(Arc::new(DeckRepository::new(
-                pool.clone(),
-            )))),
-        };
+        let state = ServiceState::from_pool(pool.clone());
         let router = Router::new()
             .nest("/deck", DeckHandler::router())
             .with_state(state);

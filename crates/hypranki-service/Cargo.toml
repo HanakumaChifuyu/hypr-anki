@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+fsrs = "7"
+sqlx = "0.9"
+serde = { version = "1", features = ["derive"] }
 hypranki-storage.workspace = true
 anyhow = "1"
 serde_json = "1.0.154"

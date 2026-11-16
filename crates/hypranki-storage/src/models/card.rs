@@ -14,6 +14,8 @@ pub struct Card {
     #[serde(default)]
     #[sqlx(json(nullable))]
     pub memory_state: Option<StoredMemoryState>,
+    pub last_reviewed_at: Option<i64>,
+    pub due_at: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
 }
