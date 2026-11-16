@@ -1,5 +1,5 @@
 use anyhow::Result;
-use axum::http::StatusCode;
+use axum::http::{StatusCode, header};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::{Value, json};
@@ -7,7 +7,6 @@ use tokio::net::TcpListener;
 
 use crate::service::ServiceState;
 
-use self::deck_handler::{ApiDoc, DeckHandler};
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
@@ -17,7 +16,7 @@ pub mod deck_handler;
 pub mod note_type_handler;
 
 fn openapi() -> utoipa::openapi::OpenApi {
-    let mut doc = ApiDoc::openapi();
+    let mut doc = deck_handler::ApiDoc::openapi();
     doc.merge(card_handler::ApiDoc::openapi());
     doc.merge(note_type_handler::ApiDoc::openapi());
     doc.info.description = Some("牌组、卡片、笔记类型管理与 FSRS 复习接口".into());
@@ -33,7 +32,15 @@ impl AppHandler {
             .nest("/card", card_handler::CardHandler::router())
             .nest("/note-type", note_type_handler::NoteTypeHandler::router())
             .with_state(services)
-            .route("/api-docs/openapi.json", get(|| async { Json(openapi()) }))
+            .route(
+                "/api-docs/openapi.json",
+                get(|| async {
+                    (
+                        [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+                        Json(openapi()),
+                    )
+                }),
+            )
             .merge(Scalar::with_url("/scalar", openapi()))
     }
 
@@ -93,7 +100,16 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "application/json; charset=utf-8"
+        );
         let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        assert!(
+            std::str::from_utf8(&bytes)
+                .unwrap()
+                .contains("查询牌组列表")
+        );
         let doc: Value = serde_json::from_slice(&bytes).unwrap();
         for (path, method) in [
             ("/deck/list", "get"),
