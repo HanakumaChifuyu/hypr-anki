@@ -9,6 +9,29 @@ use hypranki_storage::repository::deck::DeckRepository;
 #[error("牌组 {0} 不存在")]
 pub struct DeckNotFound(pub i64);
 
+#[derive(Debug, thiserror::Error)]
+pub enum DeckValidationError {
+    #[error("牌组名称不能为空")]
+    EmptyName,
+    #[error("父节点 {0} 不存在")]
+    ParentNotFound(i64),
+    #[error("父节点 {0} 不是文件夹")]
+    ParentNotFolder(i64),
+    #[error("牌组层级校验失败：{0}")]
+    InvalidHierarchy(String),
+}
+
+impl DeckValidationError {
+    pub fn user_message(&self) -> &'static str {
+        match self {
+            Self::EmptyName => "牌组名称不能为空",
+            Self::ParentNotFound(_) => "选择的父级文件夹不存在，请重新选择",
+            Self::ParentNotFolder(_) => "只能将牌组放入文件夹，请重新选择",
+            Self::InvalidHierarchy(_) => "无法调整牌组层级，请检查是否存在循环嵌套或非文件夹的父级",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DeckService {
     deck_repo: Arc<DeckRepository>,
@@ -39,13 +62,19 @@ impl DeckService {
         let mut tx = self.deck_repo.pool().begin_with("BEGIN IMMEDIATE").await?;
         let decks = DeckRepository::find_all_on(&mut tx).await?;
         Self::preorder_indices(&decks)?;
-        ensure!(!input.name.trim().is_empty(), "牌组名称不能为空");
+        ensure!(
+            !input.name.trim().is_empty(),
+            DeckValidationError::EmptyName
+        );
         if let Some(parent_id) = input.parent_id {
             let parent = decks
                 .iter()
                 .find(|deck| deck.id == parent_id)
-                .ok_or_else(|| anyhow!("父节点 {} 不存在", parent_id))?;
-            ensure!(parent.folder, "父节点 {} 不是文件夹", parent_id);
+                .ok_or(DeckValidationError::ParentNotFound(parent_id))?;
+            ensure!(
+                parent.folder,
+                DeckValidationError::ParentNotFolder(parent_id)
+            );
         }
         let deck = DeckRepository::create_on(&mut tx, input).await?;
         tx.commit().await?;
@@ -63,7 +92,7 @@ impl DeckService {
             .find(|deck| deck.id == id)
             .ok_or_else(|| anyhow::Error::new(DeckNotFound(id)))?;
         if let Some(name) = &input.name {
-            ensure!(!name.trim().is_empty(), "牌组名称不能为空");
+            ensure!(!name.trim().is_empty(), DeckValidationError::EmptyName);
             deck.name = name.clone();
         }
         if let Some(folder) = input.folder {
@@ -76,7 +105,8 @@ impl DeckService {
             deck.config_id = config_id;
         }
         let updated = deck.clone();
-        Self::preorder_indices(&decks)?;
+        Self::preorder_indices(&decks)
+            .map_err(|error| DeckValidationError::InvalidHierarchy(error.to_string()))?;
         let saved = DeckRepository::update_on(&mut tx, &updated)
             .await?
             .ok_or_else(|| anyhow::Error::new(DeckNotFound(id)))?;

@@ -5,7 +5,7 @@ use axum::extract::{
 use axum::http::StatusCode;
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use hypranki_service::services::deck::DeckNotFound;
+use hypranki_service::services::deck::{DeckNotFound, DeckValidationError};
 use hypranki_storage::models::deck::{CreateDeck, Deck, UpdateDeck};
 use serde::Deserialize;
 use tracing::{info, warn};
@@ -64,24 +64,31 @@ impl DeckHandler {
             AppError::InternalError(error)
         } else if error.downcast_ref::<DeckNotFound>().is_some() {
             warn!(status = 404, error = %error, "牌组不存在");
-            AppError::NotFound(error.to_string())
-        } else {
+            AppError::NotFound("牌组不存在或已被删除".into())
+        } else if let Some(validation) = error.downcast_ref::<DeckValidationError>() {
             warn!(status = 400, error = %error, "牌组操作校验失败");
-            AppError::BadRequest(error.to_string())
+            AppError::BadRequest(validation.user_message().into())
+        } else {
+            AppError::InternalError(error)
         }
     }
 
     fn id(path: Result<Path<i64>, PathRejection>) -> Result<i64, AppError> {
-        let Path(id) = path.map_err(|error| AppError::BadRequest(error.body_text()))?;
+        let Path(id) = path.map_err(|error| {
+            warn!(error = %error, "牌组路径参数无效");
+            AppError::BadRequest("无法识别要操作的牌组".into())
+        })?;
         if id <= 0 {
-            return Err(AppError::BadRequest("牌组 ID 必须为正整数".into()));
+            return Err(AppError::BadRequest("请选择有效的牌组".into()));
         }
         Ok(id)
     }
 
     fn body<T>(body: Result<Json<T>, JsonRejection>) -> Result<T, AppError> {
-        body.map(|Json(value)| value)
-            .map_err(|error| AppError::BadRequest(error.body_text()))
+        body.map(|Json(value)| value).map_err(|error| {
+            warn!(error = %error, "牌组请求数据格式错误");
+            AppError::BadRequest("请求数据格式不正确，请检查必填项和字段类型".into())
+        })
     }
 }
 

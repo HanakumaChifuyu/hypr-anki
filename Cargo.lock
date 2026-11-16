@@ -850,6 +850,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "utoipa",
 ]
 
 [[package]]

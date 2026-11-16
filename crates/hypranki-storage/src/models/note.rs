@@ -7,7 +7,7 @@ use thiserror::Error;
 
 type Dict = Value;
 
-#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize, utoipa::ToSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     Str,
@@ -15,7 +15,7 @@ pub enum FieldType {
     Media,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Field {
     pub name: String,
     pub field_type: FieldType,

@@ -12,21 +12,26 @@ use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod app_error;
+pub mod card_handler;
 pub mod deck_handler;
+
+fn openapi() -> utoipa::openapi::OpenApi {
+    let mut doc = ApiDoc::openapi();
+    doc.merge(card_handler::ApiDoc::openapi());
+    doc.info.description = Some("牌组、卡片管理与 FSRS 复习接口".into());
+    doc
+}
 
 pub struct AppHandler;
 
 impl AppHandler {
     fn router(services: ServiceState) -> Router {
-        let deck_router = DeckHandler::router();
         Router::new()
-            .nest("/deck", deck_router)
+            .nest("/deck", deck_handler::DeckHandler::router())
+            .nest("/card", card_handler::CardHandler::router())
             .with_state(services)
-            .route(
-                "/api-docs/openapi.json",
-                get(|| async { Json(ApiDoc::openapi()) }),
-            )
-            .merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
+            .route("/api-docs/openapi.json", get(|| async { Json(openapi()) }))
+            .merge(Scalar::with_url("/scalar", openapi()))
     }
 
     /// 启动所有handler

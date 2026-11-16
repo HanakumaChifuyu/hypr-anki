@@ -32,7 +32,7 @@ pub enum CardError {
     InvalidMemoryState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CreateCardInput {
     pub note_type_id: i64,
     pub content: Value,
@@ -41,7 +41,7 @@ pub struct CreateCardInput {
 }
 
 /// 面向卡片详情页的数据，不暴露内部内容记录或算法状态。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CardDetails {
     pub id: i64,
     pub content: Value,
@@ -59,7 +59,7 @@ pub struct CardDetails {
     pub updated_at: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct CardListQuery {
     pub deck_id: Option<i64>,
@@ -79,7 +79,7 @@ impl Default for CardListQuery {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CardPage {
     pub items: Vec<Card>,
     pub total: i64,
@@ -89,7 +89,7 @@ pub struct CardPage {
     pub total_pages: i64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewAnswer {
     Forgot,
@@ -119,7 +119,7 @@ impl Default for SchedulingOptions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ReviewResult {
     pub card_id: i64,
     pub memory_state: StoredMemoryState,
@@ -182,12 +182,16 @@ impl CardService {
     async fn type_on(conn: &mut SqliteConnection, id: i64) -> Result<NoteType> {
         NoteTypeRepository::find_by_id_on(conn, id)
             .await?
-            .ok_or_else(|| invalid(format!("字段类型 {id} 不存在")))
+            .ok_or_else(|| {
+                invalid("选择的卡片类型不存在，请重新选择").context(format!("note_type_id={id}"))
+            })
     }
     async fn deck_on(conn: &mut SqliteConnection, id: i64) -> Result<()> {
         let deck = DeckRepository::find_by_id_on(conn, id)
             .await?
-            .ok_or_else(|| invalid(format!("牌组 {id} 不存在")))?;
+            .ok_or_else(|| {
+                invalid("选择的牌组不存在，请重新选择").context(format!("deck_id={id}"))
+            })?;
         ensure!(
             !deck.folder,
             CardError::InvalidInput("文件夹不能直接存放卡片".into())
@@ -197,7 +201,9 @@ impl CardService {
     async fn template_on(conn: &mut SqliteConnection, id: i64) -> Result<Template> {
         TemplateRepository::find_by_id_on(conn, id)
             .await?
-            .ok_or_else(|| invalid(format!("模板 {id} 不存在")))
+            .ok_or_else(|| {
+                invalid("选择的模板不存在，请重新选择").context(format!("template_id={id}"))
+            })
     }
     fn validate(note: &Note, note_type: NoteType) -> Result<()> {
         note.validate(note_type)
@@ -275,7 +281,7 @@ impl CardService {
         );
         ensure!(
             query.deck_id.is_none_or(|id| id > 0),
-            CardError::InvalidInput("牌组 ID 必须为正整数".into())
+            CardError::InvalidInput("请选择有效的牌组".into())
         );
         let offset = i64::from(query.page - 1) * i64::from(query.page_size);
         let (items, total) = self

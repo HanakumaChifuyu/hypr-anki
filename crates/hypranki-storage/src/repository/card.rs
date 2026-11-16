@@ -428,7 +428,7 @@ mod tests {
 }
 
 /// 复习历史保留算法版本、权重和前后状态，供重算与训练使用。
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema, sqlx::FromRow)]
 pub struct CardReview {
     pub id: i64,
     pub card_id: i64,

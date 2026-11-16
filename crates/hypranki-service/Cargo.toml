@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+utoipa = "6"
 fsrs = "7"
 sqlx = "0.9"
 serde = { version = "1", features = ["derive"] }
