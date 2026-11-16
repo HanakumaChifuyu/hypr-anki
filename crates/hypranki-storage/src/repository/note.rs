@@ -75,6 +75,18 @@ impl NoteRepository {
         .await?)
     }
 
+    pub async fn exists_by_note_type_on(
+        conn: &mut sqlx::SqliteConnection,
+        note_type: i64,
+    ) -> Result<bool> {
+        Ok(
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM NOTES WHERE note_type = ?)")
+                .bind(note_type)
+                .fetch_one(&mut *conn)
+                .await?,
+        )
+    }
+
     pub async fn create_on(conn: &mut sqlx::SqliteConnection, input: &CreateNote) -> Result<Note> {
         Ok(sqlx::query_as::<_, Note>(
             "INSERT INTO NOTES (note_type, content) VALUES (?, ?) RETURNING id, note_type, content",

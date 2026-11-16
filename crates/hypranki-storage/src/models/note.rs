@@ -7,7 +7,7 @@ use thiserror::Error;
 
 type Dict = Value;
 
-#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize, utoipa::ToSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     Str,
@@ -22,7 +22,7 @@ pub struct Field {
     pub writability: bool,
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
 pub struct NoteType {
     pub id: i64,
     pub name: String,
@@ -38,7 +38,8 @@ pub struct Note {
 }
 
 /// 创建笔记类型所需的数据。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CreateNoteType {
     pub name: String,
     pub fields: Vec<Field>,

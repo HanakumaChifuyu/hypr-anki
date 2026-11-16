@@ -3,11 +3,13 @@ use hypranki_storage::repository::deck::DeckRepository;
 
 use crate::app::FromRef;
 use hypranki_storage::repository::card::CardRepository;
+use hypranki_storage::repository::note_type::NoteTypeRepository;
 
 #[derive(Debug, Clone)]
 pub struct Repositories {
     deck_repo: DeckRepository,
     card_repo: CardRepository,
+    note_type_repo: NoteTypeRepository,
 }
 
 impl FromRef<Repositories> for DeckRepository {
@@ -25,6 +27,7 @@ impl Repositories {
 
         Self {
             deck_repo: DeckRepository::new(pool.clone()),
+            note_type_repo: NoteTypeRepository::new(pool.clone()),
             card_repo: CardRepository::new(pool),
         }
     }
@@ -33,5 +36,11 @@ impl Repositories {
 impl FromRef<Repositories> for CardRepository {
     fn from_ref(input: &Repositories) -> Self {
         input.card_repo.clone()
+    }
+}
+
+impl FromRef<Repositories> for NoteTypeRepository {
+    fn from_ref(input: &Repositories) -> Self {
+        input.note_type_repo.clone()
     }
 }

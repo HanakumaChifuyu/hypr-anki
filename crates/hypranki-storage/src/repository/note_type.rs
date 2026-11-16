@@ -48,20 +48,28 @@ impl NoteTypeRepository {
 
     /// 全量更新；记录不存在时返回 false。
     pub async fn update(&self, input: &NoteType) -> Result<bool> {
+        Self::update_on(&mut *self.pool().acquire().await?, input).await
+    }
+
+    pub async fn update_on(conn: &mut sqlx::SqliteConnection, input: &NoteType) -> Result<bool> {
         let result = sqlx::query("UPDATE NOTETYPES SET name = ?, fields = ? WHERE id = ?")
             .bind(&input.name)
             .bind(sqlx::types::Json(&input.fields))
             .bind(input.id)
-            .execute(self.pool())
+            .execute(&mut *conn)
             .await?;
         Ok(result.rows_affected() > 0)
     }
 
     /// 删除记录；记录不存在时返回 false。
     pub async fn delete_by_id(&self, id: i64) -> Result<bool> {
+        Self::delete_by_id_on(&mut *self.pool().acquire().await?, id).await
+    }
+
+    pub async fn delete_by_id_on(conn: &mut sqlx::SqliteConnection, id: i64) -> Result<bool> {
         let result = sqlx::query("DELETE FROM NOTETYPES WHERE id = ?")
             .bind(id)
-            .execute(self.pool())
+            .execute(&mut *conn)
             .await?;
         Ok(result.rows_affected() > 0)
     }
