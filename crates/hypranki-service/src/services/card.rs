@@ -59,6 +59,36 @@ pub struct CardDetails {
     pub updated_at: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CardListQuery {
+    pub deck_id: Option<i64>,
+    /// 从 1 开始的页码。
+    pub page: u32,
+    /// 每页 1～200 张，默认 50。
+    pub page_size: u32,
+}
+
+impl Default for CardListQuery {
+    fn default() -> Self {
+        Self {
+            deck_id: None,
+            page: 1,
+            page_size: 50,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardPage {
+    pub items: Vec<Card>,
+    pub total: i64,
+    pub page: u32,
+    pub page_size: u32,
+    /// 没有匹配记录时为 0；越界页的 items 为空，总数保持不变。
+    pub total_pages: i64,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewAnswer {
@@ -234,11 +264,32 @@ impl CardService {
             updated_at: card.updated_at,
         })
     }
-    pub async fn list(&self, deck_id: Option<i64>) -> Result<Vec<Card>> {
-        match deck_id {
-            Some(id) => self.cards.find_by_deck_id(id).await,
-            None => self.cards.find_all().await,
-        }
+    pub async fn list(&self, query: &CardListQuery) -> Result<CardPage> {
+        ensure!(
+            query.page >= 1,
+            CardError::InvalidInput("页码必须从 1 开始".into())
+        );
+        ensure!(
+            (1..=200).contains(&query.page_size),
+            CardError::InvalidInput("每页数量必须在 1 到 200 之间".into())
+        );
+        ensure!(
+            query.deck_id.is_none_or(|id| id > 0),
+            CardError::InvalidInput("牌组 ID 必须为正整数".into())
+        );
+        let offset = i64::from(query.page - 1) * i64::from(query.page_size);
+        let (items, total) = self
+            .cards
+            .find_page(query.deck_id, query.page_size, offset)
+            .await?;
+        let size = i64::from(query.page_size);
+        Ok(CardPage {
+            items,
+            total,
+            page: query.page,
+            page_size: query.page_size,
+            total_pages: total / size + i64::from(total % size != 0),
+        })
     }
     pub async fn list_due(&self, limit: u32) -> Result<Vec<Card>> {
         self.cards.find_due(now()?, limit).await
@@ -466,6 +517,116 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pagination_returns_stable_pages_and_filtered_totals() -> Result<()> {
+        let (service, _dir) = setup().await?;
+        let empty = service.list(&CardListQuery::default()).await?;
+        assert!(empty.items.is_empty());
+        assert_eq!((empty.total, empty.total_pages), (0, 0));
+        let mut ids = Vec::new();
+        for index in 0..5 {
+            let card = service
+                .create(&CreateCardInput {
+                    deck_id: if index == 4 { 2 } else { 1 },
+                    ..input()
+                })
+                .await?;
+            ids.push(card.id);
+        }
+        let mut collected = Vec::new();
+        for page in 1..=3 {
+            let result = service
+                .list(&CardListQuery {
+                    page,
+                    page_size: 2,
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!((result.total, result.total_pages), (5, 3));
+            assert_eq!((result.page, result.page_size), (page, 2));
+            assert_eq!(result.items.len(), if page == 3 { 1 } else { 2 });
+            collected.extend(result.items.into_iter().map(|card| card.id));
+        }
+        assert_eq!(collected, ids);
+        let filtered = service
+            .list(&CardListQuery {
+                deck_id: Some(1),
+                page: 2,
+                page_size: 2,
+            })
+            .await?;
+        assert_eq!((filtered.total, filtered.total_pages), (4, 2));
+        assert_eq!(
+            filtered
+                .items
+                .iter()
+                .map(|card| card.id)
+                .collect::<Vec<_>>(),
+            ids[2..4]
+        );
+        let outside = service
+            .list(&CardListQuery {
+                page: u32::MAX,
+                page_size: 200,
+                ..Default::default()
+            })
+            .await?;
+        assert!(outside.items.is_empty());
+        assert_eq!((outside.total, outside.total_pages), (5, 1));
+        let missing = service
+            .list(&CardListQuery {
+                deck_id: Some(999),
+                ..Default::default()
+            })
+            .await?;
+        assert!(missing.items.is_empty());
+        assert_eq!((missing.total, missing.total_pages), (0, 0));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn pagination_defaults_and_invalid_arguments() -> Result<()> {
+        let (service, _dir) = setup().await?;
+        let query: CardListQuery = serde_json::from_value(json!({"deck_id":1}))?;
+        assert_eq!((query.page, query.page_size), (1, 50));
+        assert_eq!(query.deck_id, Some(1));
+        for query in [
+            CardListQuery {
+                page: 0,
+                ..Default::default()
+            },
+            CardListQuery {
+                page_size: 0,
+                ..Default::default()
+            },
+            CardListQuery {
+                page_size: 201,
+                ..Default::default()
+            },
+            CardListQuery {
+                deck_id: Some(0),
+                ..Default::default()
+            },
+            CardListQuery {
+                deck_id: Some(-1),
+                ..Default::default()
+            },
+        ] {
+            assert!(matches!(
+                service
+                    .list(&query)
+                    .await
+                    .unwrap_err()
+                    .downcast_ref::<CardError>(),
+                Some(CardError::InvalidInput(_))
+            ));
+        }
+        assert!(service.cards.find_page(None, 0, 0).await.is_err());
+        assert!(service.cards.find_page(None, 201, 0).await.is_err());
+        assert!(service.cards.find_page(None, 1, -1).await.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn lifecycle_keeps_independent_content_and_cleans_up() -> Result<()> {
         let (service, _dir) = setup().await?;
         let a = service.create(&input()).await?;
@@ -497,8 +658,21 @@ mod tests {
         assert_eq!(service.get(a.id).await?.content["Front"], "hello");
         service.move_to(copy.id, 1).await?;
         service.change_template(copy.id, 1).await?;
-        assert_eq!(service.list(Some(1)).await?.len(), 2);
-        assert_eq!(service.list(None).await?.len(), 2);
+        assert_eq!(
+            service
+                .list(&CardListQuery {
+                    deck_id: Some(1),
+                    ..Default::default()
+                })
+                .await?
+                .items
+                .len(),
+            2
+        );
+        assert_eq!(
+            service.list(&CardListQuery::default()).await?.items.len(),
+            2
+        );
         let updated = service.update_content(a.id, input().content, false).await?;
         assert!(updated.memory_state.is_some());
         let reset = service.update_content(a.id, input().content, true).await?;

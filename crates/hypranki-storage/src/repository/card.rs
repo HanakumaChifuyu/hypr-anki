@@ -27,6 +27,45 @@ impl CardRepository {
         self.pool.inner()
     }
 
+    /// 同一快照读取当前页与筛选后的总数，避免并发写入造成二者不一致。
+    pub async fn find_page(
+        &self,
+        deck_id: Option<i64>,
+        limit: u32,
+        offset: i64,
+    ) -> Result<(Vec<Card>, i64)> {
+        anyhow::ensure!((1..=200).contains(&limit), "每页数量必须在 1 到 200 之间");
+        anyhow::ensure!(offset >= 0, "分页偏移量不能为负数");
+        let mut tx = self.pool().begin().await?;
+        let (items, total) = if let Some(deck_id) = deck_id {
+            let total = sqlx::query_scalar("SELECT COUNT(*) FROM CARDS WHERE deck_id = ?")
+                .bind(deck_id)
+                .fetch_one(&mut *tx)
+                .await?;
+            let items = sqlx::query_as(
+                "SELECT * FROM CARDS WHERE deck_id = ? ORDER BY id ASC LIMIT ? OFFSET ?",
+            )
+            .bind(deck_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&mut *tx)
+            .await?;
+            (items, total)
+        } else {
+            let total = sqlx::query_scalar("SELECT COUNT(*) FROM CARDS")
+                .fetch_one(&mut *tx)
+                .await?;
+            let items = sqlx::query_as("SELECT * FROM CARDS ORDER BY id ASC LIMIT ? OFFSET ?")
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&mut *tx)
+                .await?;
+            (items, total)
+        };
+        tx.commit().await?;
+        Ok((items, total))
+    }
+
     /// 新卡没有记忆状态；关联记录必须存在，且 Note 不能被其他卡片占用。
     pub async fn create(&self, input: &CreateCard) -> Result<Card> {
         let now = current_timestamp();
